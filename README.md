@@ -62,10 +62,7 @@ On each MCP request the Durable Object reloads the config from KV, compares `upd
    bun install
    ```
 
-2. **Create a Clerk application** at https://dashboard.clerk.com.
-   - Create an OAuth application inside it (used for MCP-side OAuth).
-   - Set its redirect URI to `http://localhost:8788/callback`.
-   - Note the client id, client secret, secret key (`sk_…`), publishable key (`pk_…`), and frontend API URL.
+2. **Set up Clerk** — see [Configuring Clerk](#configuring-clerk) below. For local dev use `http://localhost:8788/callback` as the redirect URL.
 
 3. **Configure environment**
    ```bash
@@ -99,9 +96,33 @@ On each MCP request the Durable Object reloads the config from KV, compares `upd
    ```
    Connect to `http://localhost:8788/mcp/<your-slug>` and complete the OAuth flow.
 
+### Configuring Clerk
+
+The gateway acts as an OAuth **client** to Clerk (Clerk is the upstream identity provider) and as an OAuth **server** to MCP clients. You only need to set up the upstream side — the MCP-facing OAuth server is handled by `@cloudflare/workers-oauth-provider` automatically.
+
+1. Sign up / log in at the [Clerk Dashboard](https://dashboard.clerk.com) and create an application.
+2. In your application, go to **Configure → OAuth applications** and click **Add OAuth application**. Pick any name — this is internal.
+3. **Redirect URL** — add the gateway's callback. The path is always `/callback`:
+   - Local dev: `http://localhost:8788/callback`
+   - Production: `https://<your-host>/callback`
+
+   You can add multiple URLs to one OAuth application if you want a single Clerk app to serve both environments.
+4. **Scopes** — the gateway requires all of:
+   - `openid`
+   - `profile`
+   - `email`
+   - `public_metadata` — needed so the role-based `generateImage` tool can read `publicMetadata.role`
+   - `offline_access` — needed so MCP clients can refresh tokens without re-prompting the user
+5. Copy these values, you'll need them as worker secrets:
+   - **Client ID** and **Client secret** from the OAuth application you just created → `CLERK_CLIENT_ID`, `CLERK_CLIENT_SECRET`
+   - **Secret key** (`sk_…`) and **Publishable key** (`pk_…`) from **API keys** → `CLERK_SECRET_KEY`, `CLERK_PUBLISHABLE_KEY`
+   - **Frontend API URL** (e.g. `https://your-subdomain.clerk.accounts.dev`) → `CLERK_FRONTEND_API`
+
+User roles (for the optional `generateImage` tool) are set per-user under **Users → \<user\> → Metadata → Public metadata**, e.g. `{"role": "admin"}`. The default allowed roles are `admin`, `premium`, `image_generation`; see `ALLOWED_ROLES` in `src/mcp/mcp-app.ts`.
+
 ### Production deployment
 
-1. Update the Clerk OAuth application's redirect URI to `https://<your-host>/callback`.
+1. Add `https://<your-host>/callback` to the Clerk OAuth application's redirect URLs (see [Configuring Clerk](#configuring-clerk)).
 2. Create the KV namespace and copy the id into `wrangler.jsonc`:
    ```bash
    wrangler kv namespace create OAUTH_KV
