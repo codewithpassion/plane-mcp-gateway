@@ -7,23 +7,30 @@ import {
 	listWorkLogs,
 	updateWorkLog,
 } from "../resources/work_logs";
-import { stripNullish, toolResult } from "./_helpers";
+import {
+	projectIdField,
+	requireProjectId,
+	stripNullish,
+	toolResult,
+} from "./_helpers";
 
 export function registerWorkLogTools(
 	server: McpServer,
 	ctx: PlaneAppContext,
 ): void {
+	const pid = projectIdField(ctx);
+
 	server.tool(
 		"list_work_logs",
 		"List work logs for a work item.",
-		{ project_id: z.string(), work_item_id: z.string() },
-		async (args) =>
+		{ ...pid, work_item_id: z.string() },
+		async (args: Record<string, unknown>) =>
 			toolResult(() =>
 				listWorkLogs(
 					ctx.config,
 					ctx.workspaceSlug,
-					args.project_id,
-					args.work_item_id,
+					requireProjectId(ctx, args as { project_id?: string }),
+					args.work_item_id as string,
 				),
 			)(),
 	);
@@ -32,18 +39,23 @@ export function registerWorkLogTools(
 		"create_work_log",
 		"Create a work log for a work item.",
 		{
-			project_id: z.string(),
+			...pid,
 			work_item_id: z.string(),
 			duration: z.number().int().optional(),
 			description: z.string().optional(),
 		},
-		async (args) => {
-			const { project_id, work_item_id, ...rest } = args;
+		async (args: Record<string, unknown>) => {
+			const a = args as {
+				project_id?: string;
+				work_item_id: string;
+			} & Record<string, unknown>;
+			const projectId = requireProjectId(ctx, a);
+			const { project_id: _drop, work_item_id, ...rest } = a;
 			return toolResult(() =>
 				createWorkLog(
 					ctx.config,
 					ctx.workspaceSlug,
-					project_id,
+					projectId,
 					work_item_id,
 					stripNullish(rest),
 				),
@@ -55,19 +67,25 @@ export function registerWorkLogTools(
 		"update_work_log",
 		"Update a work log for a work item.",
 		{
-			project_id: z.string(),
+			...pid,
 			work_item_id: z.string(),
 			work_log_id: z.string(),
 			duration: z.number().int().optional(),
 			description: z.string().optional(),
 		},
-		async (args) => {
-			const { project_id, work_item_id, work_log_id, ...rest } = args;
+		async (args: Record<string, unknown>) => {
+			const a = args as {
+				project_id?: string;
+				work_item_id: string;
+				work_log_id: string;
+			} & Record<string, unknown>;
+			const projectId = requireProjectId(ctx, a);
+			const { project_id: _drop, work_item_id, work_log_id, ...rest } = a;
 			return toolResult(() =>
 				updateWorkLog(
 					ctx.config,
 					ctx.workspaceSlug,
-					project_id,
+					projectId,
 					work_item_id,
 					work_log_id,
 					stripNullish(rest),
@@ -80,18 +98,18 @@ export function registerWorkLogTools(
 		"delete_work_log",
 		"Delete a work log for a work item.",
 		{
-			project_id: z.string(),
+			...pid,
 			work_item_id: z.string(),
 			work_log_id: z.string(),
 		},
-		async (args) =>
+		async (args: Record<string, unknown>) =>
 			toolResult(async () => {
 				await deleteWorkLog(
 					ctx.config,
 					ctx.workspaceSlug,
-					args.project_id,
-					args.work_item_id,
-					args.work_log_id,
+					requireProjectId(ctx, args as { project_id?: string }),
+					args.work_item_id as string,
+					args.work_log_id as string,
 				);
 				return { ok: true };
 			})(),

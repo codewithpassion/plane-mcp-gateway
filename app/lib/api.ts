@@ -122,6 +122,21 @@ export function useApi() {
 				request<PlaneProject[]>(
 					`/api/configs/${encodeURIComponent(slug)}/projects`,
 				),
+
+			listSavedConfigProjects: (slug: string) =>
+				request<PlaneProject[]>(
+					`/api/configs/${encodeURIComponent(slug)}/projects`,
+				),
+
+			previewProjects: (input: {
+				apiKey: string;
+				baseUrl: string;
+				workspaceSlug: string;
+			}) =>
+				request<PlaneProject[]>("/api/configs/projects-preview", {
+					method: "POST",
+					json: input,
+				}),
 		}),
 		[request],
 	);

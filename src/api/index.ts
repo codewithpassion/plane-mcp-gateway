@@ -153,6 +153,42 @@ apiApp.post("/configs/:slug/test", async (c) => {
 	}
 });
 
+const projectsPreviewSchema = z.object({
+	apiKey: z.string().min(1),
+	baseUrl: z.string().url(),
+	workspaceSlug: z.string().min(1),
+});
+
+apiApp.post("/configs/projects-preview", async (c) => {
+	const body = await c.req.json().catch(() => null);
+	const parsed = projectsPreviewSchema.safeParse(body);
+	if (!parsed.success) {
+		return c.json(
+			{ error: "invalid_body", details: parsed.error.format() },
+			400,
+		);
+	}
+	try {
+		const response = await planeFetch<{
+			results?: Array<Record<string, unknown>>;
+		}>(
+			{ apiKey: parsed.data.apiKey, baseUrl: parsed.data.baseUrl },
+			"GET",
+			`workspaces/${parsed.data.workspaceSlug}/projects`,
+			{ params: { per_page: 100 } },
+		);
+		const items = (response?.results ?? []).map((p) => ({
+			id: p.id,
+			name: p.name,
+			identifier: p.identifier,
+		}));
+		return c.json(items);
+	} catch (err) {
+		const message = err instanceof Error ? err.message : String(err);
+		return c.json({ error: message }, 502);
+	}
+});
+
 apiApp.get("/configs/:slug/projects", async (c) => {
 	const userId = c.get("userId");
 	const rec = await loadConfig(c.env.OAUTH_KV, userId, c.req.param("slug"));

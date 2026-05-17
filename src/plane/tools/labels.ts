@@ -8,29 +8,38 @@ import {
 	retrieveLabel,
 	updateLabel,
 } from "../resources/labels";
-import { stripNullish, toolResult } from "./_helpers";
+import {
+	projectIdField,
+	requireProjectId,
+	stripNullish,
+	toolResult,
+} from "./_helpers";
 
 export function registerLabelTools(
 	server: McpServer,
 	ctx: PlaneAppContext,
 ): void {
+	const pid = projectIdField(ctx);
+
 	server.tool(
 		"list_labels",
 		"List all labels in a project.",
 		{
-			project_id: z.string(),
+			...pid,
 			cursor: z.string().optional(),
 			per_page: z.number().int().min(1).max(100).optional(),
 		},
-		async (args) => {
-			const { project_id, ...rest } = args;
+		async (args: Record<string, unknown>) => {
+			const a = args as { project_id?: string } & Record<string, unknown>;
+			const projectId = requireProjectId(ctx, a);
+			const { project_id: _drop, ...rest } = a;
 			return toolResult(
 				async () =>
 					(
 						await listLabels(
 							ctx.config,
 							ctx.workspaceSlug,
-							project_id,
+							projectId,
 							stripNullish(rest),
 						)
 					).results,
@@ -42,7 +51,7 @@ export function registerLabelTools(
 		"create_label",
 		"Create a new label.",
 		{
-			project_id: z.string(),
+			...pid,
 			name: z.string(),
 			color: z.string().optional(),
 			description: z.string().optional(),
@@ -51,13 +60,15 @@ export function registerLabelTools(
 			external_source: z.string().optional(),
 			external_id: z.string().optional(),
 		},
-		async (args) => {
-			const { project_id, ...rest } = args;
+		async (args: Record<string, unknown>) => {
+			const a = args as { project_id?: string } & Record<string, unknown>;
+			const projectId = requireProjectId(ctx, a);
+			const { project_id: _drop, ...rest } = a;
 			return toolResult(() =>
 				createLabel(
 					ctx.config,
 					ctx.workspaceSlug,
-					project_id,
+					projectId,
 					stripNullish(rest),
 				),
 			)();
@@ -67,14 +78,14 @@ export function registerLabelTools(
 	server.tool(
 		"retrieve_label",
 		"Retrieve a label by ID.",
-		{ project_id: z.string(), label_id: z.string() },
-		async (args) =>
+		{ ...pid, label_id: z.string() },
+		async (args: Record<string, unknown>) =>
 			toolResult(() =>
 				retrieveLabel(
 					ctx.config,
 					ctx.workspaceSlug,
-					args.project_id,
-					args.label_id,
+					requireProjectId(ctx, args as { project_id?: string }),
+					args.label_id as string,
 				),
 			)(),
 	);
@@ -83,7 +94,7 @@ export function registerLabelTools(
 		"update_label",
 		"Update a label by ID.",
 		{
-			project_id: z.string(),
+			...pid,
 			label_id: z.string(),
 			name: z.string().optional(),
 			color: z.string().optional(),
@@ -93,13 +104,18 @@ export function registerLabelTools(
 			external_source: z.string().optional(),
 			external_id: z.string().optional(),
 		},
-		async (args) => {
-			const { project_id, label_id, ...rest } = args;
+		async (args: Record<string, unknown>) => {
+			const a = args as {
+				project_id?: string;
+				label_id: string;
+			} & Record<string, unknown>;
+			const projectId = requireProjectId(ctx, a);
+			const { project_id: _drop, label_id, ...rest } = a;
 			return toolResult(() =>
 				updateLabel(
 					ctx.config,
 					ctx.workspaceSlug,
-					project_id,
+					projectId,
 					label_id,
 					stripNullish(rest),
 				),
@@ -110,14 +126,14 @@ export function registerLabelTools(
 	server.tool(
 		"delete_label",
 		"Delete a label by ID.",
-		{ project_id: z.string(), label_id: z.string() },
-		async (args) =>
+		{ ...pid, label_id: z.string() },
+		async (args: Record<string, unknown>) =>
 			toolResult(async () => {
 				await deleteLabel(
 					ctx.config,
 					ctx.workspaceSlug,
-					args.project_id,
-					args.label_id,
+					requireProjectId(ctx, args as { project_id?: string }),
+					args.label_id as string,
 				);
 				return { ok: true };
 			})(),

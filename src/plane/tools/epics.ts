@@ -10,7 +10,12 @@ import {
 	updateWorkItem,
 } from "../resources/epics";
 import type { WorkItem, WorkItemType } from "../types/epics";
-import { stripNullish, toolResult } from "./_helpers";
+import {
+	projectIdField,
+	requireProjectId,
+	stripNullish,
+	toolResult,
+} from "./_helpers";
 
 async function getEpicWorkItemType(
 	cfg: PlaneConfig,
@@ -28,23 +33,27 @@ export function registerEpicTools(
 	server: McpServer,
 	ctx: PlaneAppContext,
 ): void {
+	const pid = projectIdField(ctx);
+
 	server.tool(
 		"list_epics",
 		"List all epics in a project.",
 		{
-			project_id: z.string(),
+			...pid,
 			cursor: z.string().optional(),
 			per_page: z.number().int().min(1).max(100).optional(),
 		},
-		async (args) => {
-			const { project_id, ...rest } = args;
+		async (args: Record<string, unknown>) => {
+			const a = args as { project_id?: string } & Record<string, unknown>;
+			const projectId = requireProjectId(ctx, a);
+			const { project_id: _drop, ...rest } = a;
 			return toolResult(
 				async () =>
 					(
 						await listEpics(
 							ctx.config,
 							ctx.workspaceSlug,
-							project_id,
+							projectId,
 							stripNullish(rest),
 						)
 					).results,
@@ -56,7 +65,7 @@ export function registerEpicTools(
 		"create_epic",
 		"Create a new epic.",
 		{
-			project_id: z.string(),
+			...pid,
 			name: z.string(),
 			assignees: z.array(z.string()).optional(),
 			labels: z.array(z.string()).optional(),
@@ -74,13 +83,15 @@ export function registerEpicTools(
 			state: z.string().optional(),
 			estimate_point: z.string().optional(),
 		},
-		async (args) => {
-			const { project_id, ...rest } = args;
+		async (args: Record<string, unknown>) => {
+			const a = args as { project_id?: string } & Record<string, unknown>;
+			const projectId = requireProjectId(ctx, a);
+			const { project_id: _drop, ...rest } = a;
 			return toolResult(async () => {
 				const epicType = await getEpicWorkItemType(
 					ctx.config,
 					ctx.workspaceSlug,
-					project_id,
+					projectId,
 				);
 				if (!epicType) {
 					throw new Error(
@@ -91,13 +102,13 @@ export function registerEpicTools(
 				const workItem: WorkItem = await createWorkItem(
 					ctx.config,
 					ctx.workspaceSlug,
-					project_id,
+					projectId,
 					body,
 				);
 				return retrieveEpic(
 					ctx.config,
 					ctx.workspaceSlug,
-					project_id,
+					projectId,
 					workItem.id as string,
 				);
 			})();
@@ -108,7 +119,7 @@ export function registerEpicTools(
 		"update_epic",
 		"Update an epic by ID.",
 		{
-			project_id: z.string(),
+			...pid,
 			epic_id: z.string(),
 			name: z.string().optional(),
 			assignees: z.array(z.string()).optional(),
@@ -126,20 +137,25 @@ export function registerEpicTools(
 			state: z.string().optional(),
 			estimate_point: z.string().optional(),
 		},
-		async (args) => {
-			const { project_id, epic_id, ...rest } = args;
+		async (args: Record<string, unknown>) => {
+			const a = args as {
+				project_id?: string;
+				epic_id: string;
+			} & Record<string, unknown>;
+			const projectId = requireProjectId(ctx, a);
+			const { project_id: _drop, epic_id, ...rest } = a;
 			return toolResult(async () => {
 				const workItem: WorkItem = await updateWorkItem(
 					ctx.config,
 					ctx.workspaceSlug,
-					project_id,
+					projectId,
 					epic_id,
 					stripNullish(rest),
 				);
 				return retrieveEpic(
 					ctx.config,
 					ctx.workspaceSlug,
-					project_id,
+					projectId,
 					workItem.id as string,
 				);
 			})();
@@ -149,14 +165,14 @@ export function registerEpicTools(
 	server.tool(
 		"retrieve_epic",
 		"Retrieve an epic by ID.",
-		{ project_id: z.string(), epic_id: z.string() },
-		async (args) =>
+		{ ...pid, epic_id: z.string() },
+		async (args: Record<string, unknown>) =>
 			toolResult(() =>
 				retrieveEpic(
 					ctx.config,
 					ctx.workspaceSlug,
-					args.project_id,
-					args.epic_id,
+					requireProjectId(ctx, args as { project_id?: string }),
+					args.epic_id as string,
 				),
 			)(),
 	);
@@ -164,14 +180,14 @@ export function registerEpicTools(
 	server.tool(
 		"delete_epic",
 		"Delete an epic by ID.",
-		{ project_id: z.string(), epic_id: z.string() },
-		async (args) =>
+		{ ...pid, epic_id: z.string() },
+		async (args: Record<string, unknown>) =>
 			toolResult(async () => {
 				await deleteWorkItem(
 					ctx.config,
 					ctx.workspaceSlug,
-					args.project_id,
-					args.epic_id,
+					requireProjectId(ctx, args as { project_id?: string }),
+					args.epic_id as string,
 				);
 				return { ok: true };
 			})(),

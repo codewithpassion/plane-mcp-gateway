@@ -11,7 +11,12 @@ import {
 	searchWorkItems,
 	updateWorkItem,
 } from "../resources/work_items";
-import { stripNullish, toolResult } from "./_helpers";
+import {
+	projectIdField,
+	requireProjectId,
+	stripNullish,
+	toolResult,
+} from "./_helpers";
 
 type Condition = Record<string, unknown>;
 
@@ -53,11 +58,13 @@ export function registerWorkItemTools(
 	server: McpServer,
 	ctx: PlaneAppContext,
 ): void {
+	const pid = projectIdField(ctx);
+
 	server.tool(
 		"list_work_items",
 		"List work items in a project or search across the workspace. When any filter parameter is provided (assignee_ids, state_ids, state_groups, priorities, label_ids, type_ids, cycle_ids, module_ids, is_archived, created_by_ids, or query), this uses the advanced search endpoint which supports powerful filtering. Otherwise it uses the standard list endpoint.",
 		{
-			project_id: z.string().optional(),
+			...pid,
 			query: z.string().optional(),
 			assignee_ids: z.array(z.string()).optional(),
 			state_ids: z.array(z.string()).optional(),
@@ -79,16 +86,40 @@ export function registerWorkItemTools(
 			external_id: z.string().optional(),
 			external_source: z.string().optional(),
 		},
-		async (args) =>
+		async (args: Record<string, unknown>) =>
 			toolResult(async () => {
-				const filters = buildAdvancedSearchFilters(args);
-				if (filters !== undefined || args.query !== undefined) {
+				const a = args as {
+					project_id?: string;
+					query?: string;
+					assignee_ids?: string[];
+					state_ids?: string[];
+					state_groups?: string[];
+					priorities?: string[];
+					label_ids?: string[];
+					type_ids?: string[];
+					cycle_ids?: string[];
+					module_ids?: string[];
+					is_archived?: boolean;
+					created_by_ids?: string[];
+					workspace_search?: boolean;
+					limit?: number;
+					cursor?: string;
+					per_page?: number;
+					expand?: string;
+					fields?: string;
+					order_by?: string;
+					external_id?: string;
+					external_source?: string;
+				};
+				const resolvedPid = ctx.projectId ?? a.project_id;
+				const filters = buildAdvancedSearchFilters(a);
+				if (filters !== undefined || a.query !== undefined) {
 					const body = stripNullish({
-						query: args.query,
+						query: a.query,
 						filters,
-						limit: args.limit,
-						project_id: args.project_id,
-						workspace_search: args.workspace_search ? true : undefined,
+						limit: a.limit,
+						project_id: resolvedPid,
+						workspace_search: a.workspace_search ? true : undefined,
 					});
 					return advancedSearchWorkItems(
 						ctx.config,
@@ -96,24 +127,24 @@ export function registerWorkItemTools(
 						body as Record<string, unknown>,
 					);
 				}
-				if (!args.project_id) {
+				if (!resolvedPid) {
 					throw new Error(
 						"project_id is required when no filters are provided",
 					);
 				}
 				const params = stripNullish({
-					cursor: args.cursor,
-					per_page: args.per_page,
-					expand: args.expand,
-					fields: args.fields,
-					order_by: args.order_by,
-					external_id: args.external_id,
-					external_source: args.external_source,
+					cursor: a.cursor,
+					per_page: a.per_page,
+					expand: a.expand,
+					fields: a.fields,
+					order_by: a.order_by,
+					external_id: a.external_id,
+					external_source: a.external_source,
 				});
 				const res = await listWorkItems(
 					ctx.config,
 					ctx.workspaceSlug,
-					args.project_id,
+					resolvedPid,
 					params,
 				);
 				return res.results;
@@ -124,7 +155,7 @@ export function registerWorkItemTools(
 		"create_work_item",
 		"Create a new work item.",
 		{
-			project_id: z.string(),
+			...pid,
 			name: z.string(),
 			assignees: z.array(z.string()).optional(),
 			labels: z.array(z.string()).optional(),
@@ -144,13 +175,15 @@ export function registerWorkItemTools(
 			estimate_point: z.string().optional(),
 			type: z.string().optional(),
 		},
-		async (args) => {
-			const { project_id, ...rest } = args;
+		async (args: Record<string, unknown>) => {
+			const a = args as { project_id?: string } & Record<string, unknown>;
+			const projectId = requireProjectId(ctx, a);
+			const { project_id: _drop, ...rest } = a;
 			return toolResult(() =>
 				createWorkItem(
 					ctx.config,
 					ctx.workspaceSlug,
-					project_id,
+					projectId,
 					stripNullish(rest),
 				),
 			)();
@@ -161,7 +194,7 @@ export function registerWorkItemTools(
 		"retrieve_work_item",
 		"Retrieve a work item by ID.",
 		{
-			project_id: z.string(),
+			...pid,
 			work_item_id: z.string(),
 			expand: z.string().optional(),
 			fields: z.string().optional(),
@@ -169,13 +202,18 @@ export function registerWorkItemTools(
 			external_source: z.string().optional(),
 			order_by: z.string().optional(),
 		},
-		async (args) => {
-			const { project_id, work_item_id, ...rest } = args;
+		async (args: Record<string, unknown>) => {
+			const a = args as {
+				project_id?: string;
+				work_item_id: string;
+			} & Record<string, unknown>;
+			const projectId = requireProjectId(ctx, a);
+			const { project_id: _drop, work_item_id, ...rest } = a;
 			return toolResult(() =>
 				retrieveWorkItem(
 					ctx.config,
 					ctx.workspaceSlug,
-					project_id,
+					projectId,
 					work_item_id,
 					stripNullish(rest),
 				),
@@ -213,7 +251,7 @@ export function registerWorkItemTools(
 		"update_work_item",
 		"Update a work item by ID.",
 		{
-			project_id: z.string(),
+			...pid,
 			work_item_id: z.string(),
 			name: z.string().optional(),
 			assignees: z.array(z.string()).optional(),
@@ -234,13 +272,18 @@ export function registerWorkItemTools(
 			estimate_point: z.string().optional(),
 			type: z.string().optional(),
 		},
-		async (args) => {
-			const { project_id, work_item_id, ...rest } = args;
+		async (args: Record<string, unknown>) => {
+			const a = args as {
+				project_id?: string;
+				work_item_id: string;
+			} & Record<string, unknown>;
+			const projectId = requireProjectId(ctx, a);
+			const { project_id: _drop, work_item_id, ...rest } = a;
 			return toolResult(() =>
 				updateWorkItem(
 					ctx.config,
 					ctx.workspaceSlug,
-					project_id,
+					projectId,
 					work_item_id,
 					stripNullish(rest),
 				),
@@ -251,14 +294,14 @@ export function registerWorkItemTools(
 	server.tool(
 		"delete_work_item",
 		"Delete a work item by ID.",
-		{ project_id: z.string(), work_item_id: z.string() },
-		async (args) =>
+		{ ...pid, work_item_id: z.string() },
+		async (args: Record<string, unknown>) =>
 			toolResult(async () => {
 				await deleteWorkItem(
 					ctx.config,
 					ctx.workspaceSlug,
-					args.project_id,
-					args.work_item_id,
+					requireProjectId(ctx, args as { project_id?: string }),
+					args.work_item_id as string,
 				);
 				return { ok: true };
 			})(),

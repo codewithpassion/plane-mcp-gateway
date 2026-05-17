@@ -6,7 +6,7 @@ import { Button } from "~/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "~/components/ui/card";
 import { Input } from "~/components/ui/input";
 import { Label } from "~/components/ui/label";
-import { useApi } from "~/lib/api";
+import { type PlaneProject, useApi } from "~/lib/api";
 
 export const Route = createFileRoute("/app/configs/new")({
 	component: NewConfig,
@@ -40,6 +40,30 @@ function NewConfig() {
 	});
 	const [errors, setErrors] = useState<FormErrors>({});
 	const [submitting, setSubmitting] = useState(false);
+	const [projects, setProjects] = useState<PlaneProject[] | null>(null);
+	const [loadingProjects, setLoadingProjects] = useState(false);
+
+	const canLoadProjects =
+		values.apiKey.trim().length > 0 &&
+		values.baseUrl.trim().length > 0 &&
+		values.workspaceSlug.trim().length > 0;
+
+	const onLoadProjects = async () => {
+		setLoadingProjects(true);
+		try {
+			const list = await api.previewProjects({
+				apiKey: values.apiKey,
+				baseUrl: values.baseUrl,
+				workspaceSlug: values.workspaceSlug,
+			});
+			setProjects(list);
+			toast.success(`Loaded ${list.length} project(s)`);
+		} catch (err) {
+			toast.error((err as Error).message);
+		} finally {
+			setLoadingProjects(false);
+		}
+	};
 
 	const update = <K extends keyof FormValues>(key: K, value: FormValues[K]) =>
 		setValues((v) => ({ ...v, [key]: value }));
@@ -116,14 +140,39 @@ function NewConfig() {
 						onChange={(v) => update("apiKey", v)}
 						type="password"
 					/>
-					<Field
-						id="projectId"
-						label="Default project ID (optional)"
-						value={values.projectId ?? ""}
-						error={errors.projectId}
-						onChange={(v) => update("projectId", v)}
-						placeholder="UUID (project picker coming in phase 3)"
-					/>
+					<div className="space-y-1.5">
+						<Label>Default project (optional)</Label>
+						<div className="flex flex-wrap items-center gap-2">
+							<Button
+								type="button"
+								variant="outline"
+								onClick={onLoadProjects}
+								disabled={!canLoadProjects || loadingProjects}
+							>
+								{loadingProjects ? "Loading..." : "Load projects"}
+							</Button>
+							{projects && (
+								<select
+									className="flex h-9 rounded-md border border-[var(--color-input)] bg-transparent px-3 py-1 text-sm shadow-sm outline-none focus-visible:ring-1 focus-visible:ring-[var(--color-ring)]"
+									value={values.projectId ?? ""}
+									onChange={(e) => update("projectId", e.target.value)}
+								>
+									<option value="">All projects (no pin)</option>
+									{projects.map((p) => (
+										<option key={p.id} value={p.id}>
+											{p.identifier} — {p.name}
+										</option>
+									))}
+								</select>
+							)}
+						</div>
+						{!projects && (
+							<div className="text-xs text-[var(--color-muted-foreground)]">
+								Fill in API key, base URL, and workspace slug, then load
+								projects.
+							</div>
+						)}
+					</div>
 
 					<div className="flex gap-2">
 						<Button type="submit" disabled={submitting}>

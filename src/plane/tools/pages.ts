@@ -7,12 +7,19 @@ import {
 	retrieveProjectPage,
 	retrieveWorkspacePage,
 } from "../resources/pages";
-import { stripNullish, toolResult } from "./_helpers";
+import {
+	projectIdField,
+	requireProjectId,
+	stripNullish,
+	toolResult,
+} from "./_helpers";
 
 export function registerPageTools(
 	server: McpServer,
 	ctx: PlaneAppContext,
 ): void {
+	const pid = projectIdField(ctx);
+
 	server.tool(
 		"retrieve_workspace_page",
 		"Retrieve a workspace page by ID.",
@@ -27,16 +34,16 @@ export function registerPageTools(
 		"retrieve_project_page",
 		"Retrieve a project page by ID.",
 		{
-			project_id: z.string(),
+			...pid,
 			page_id: z.string(),
 		},
-		async (args) =>
+		async (args: Record<string, unknown>) =>
 			toolResult(() =>
 				retrieveProjectPage(
 					ctx.config,
 					ctx.workspaceSlug,
-					args.project_id,
-					args.page_id,
+					requireProjectId(ctx, args as { project_id?: string }),
+					args.page_id as string,
 				),
 			)(),
 	);
@@ -66,7 +73,7 @@ export function registerPageTools(
 		"create_project_page",
 		"Create a project page.",
 		{
-			project_id: z.string(),
+			...pid,
 			name: z.string(),
 			description_html: z.string(),
 			access: z.number().int().optional(),
@@ -78,13 +85,15 @@ export function registerPageTools(
 			external_id: z.string().optional(),
 			external_source: z.string().optional(),
 		},
-		async (args) => {
-			const { project_id, ...rest } = args;
+		async (args: Record<string, unknown>) => {
+			const a = args as { project_id?: string } & Record<string, unknown>;
+			const projectId = requireProjectId(ctx, a);
+			const { project_id: _drop, ...rest } = a;
 			return toolResult(() =>
 				createProjectPage(
 					ctx.config,
 					ctx.workspaceSlug,
-					project_id,
+					projectId,
 					stripNullish(rest),
 				),
 			)();

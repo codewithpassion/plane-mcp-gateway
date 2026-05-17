@@ -8,29 +8,38 @@ import {
 	retrieveState,
 	updateState,
 } from "../resources/states";
-import { stripNullish, toolResult } from "./_helpers";
+import {
+	projectIdField,
+	requireProjectId,
+	stripNullish,
+	toolResult,
+} from "./_helpers";
 
 export function registerStateTools(
 	server: McpServer,
 	ctx: PlaneAppContext,
 ): void {
+	const pid = projectIdField(ctx);
+
 	server.tool(
 		"list_states",
 		"List all states in a project.",
 		{
-			project_id: z.string(),
+			...pid,
 			cursor: z.string().optional(),
 			per_page: z.number().int().min(1).max(100).optional(),
 		},
-		async (args) => {
-			const { project_id, ...rest } = args;
+		async (args: Record<string, unknown>) => {
+			const a = args as { project_id?: string } & Record<string, unknown>;
+			const projectId = requireProjectId(ctx, a);
+			const { project_id: _drop, ...rest } = a;
 			return toolResult(
 				async () =>
 					(
 						await listStates(
 							ctx.config,
 							ctx.workspaceSlug,
-							project_id,
+							projectId,
 							stripNullish(rest),
 						)
 					).results,
@@ -42,7 +51,7 @@ export function registerStateTools(
 		"create_state",
 		"Create a new state.",
 		{
-			project_id: z.string(),
+			...pid,
 			name: z.string(),
 			color: z.string(),
 			description: z.string().optional(),
@@ -53,13 +62,15 @@ export function registerStateTools(
 			external_source: z.string().optional(),
 			external_id: z.string().optional(),
 		},
-		async (args) => {
-			const { project_id, ...rest } = args;
+		async (args: Record<string, unknown>) => {
+			const a = args as { project_id?: string } & Record<string, unknown>;
+			const projectId = requireProjectId(ctx, a);
+			const { project_id: _drop, ...rest } = a;
 			return toolResult(() =>
 				createState(
 					ctx.config,
 					ctx.workspaceSlug,
-					project_id,
+					projectId,
 					stripNullish(rest),
 				),
 			)();
@@ -69,14 +80,14 @@ export function registerStateTools(
 	server.tool(
 		"retrieve_state",
 		"Retrieve a state by ID.",
-		{ project_id: z.string(), state_id: z.string() },
-		async (args) =>
+		{ ...pid, state_id: z.string() },
+		async (args: Record<string, unknown>) =>
 			toolResult(() =>
 				retrieveState(
 					ctx.config,
 					ctx.workspaceSlug,
-					args.project_id,
-					args.state_id,
+					requireProjectId(ctx, args as { project_id?: string }),
+					args.state_id as string,
 				),
 			)(),
 	);
@@ -85,7 +96,7 @@ export function registerStateTools(
 		"update_state",
 		"Update a state by ID.",
 		{
-			project_id: z.string(),
+			...pid,
 			state_id: z.string(),
 			name: z.string().optional(),
 			color: z.string().optional(),
@@ -97,13 +108,18 @@ export function registerStateTools(
 			external_source: z.string().optional(),
 			external_id: z.string().optional(),
 		},
-		async (args) => {
-			const { project_id, state_id, ...rest } = args;
+		async (args: Record<string, unknown>) => {
+			const a = args as {
+				project_id?: string;
+				state_id: string;
+			} & Record<string, unknown>;
+			const projectId = requireProjectId(ctx, a);
+			const { project_id: _drop, state_id, ...rest } = a;
 			return toolResult(() =>
 				updateState(
 					ctx.config,
 					ctx.workspaceSlug,
-					project_id,
+					projectId,
 					state_id,
 					stripNullish(rest),
 				),
@@ -114,14 +130,14 @@ export function registerStateTools(
 	server.tool(
 		"delete_state",
 		"Delete a state by ID.",
-		{ project_id: z.string(), state_id: z.string() },
-		async (args) =>
+		{ ...pid, state_id: z.string() },
+		async (args: Record<string, unknown>) =>
 			toolResult(async () => {
 				await deleteState(
 					ctx.config,
 					ctx.workspaceSlug,
-					args.project_id,
-					args.state_id,
+					requireProjectId(ctx, args as { project_id?: string }),
+					args.state_id as string,
 				);
 				return { ok: true };
 			})(),

@@ -14,29 +14,38 @@ import {
 	unarchiveModule,
 	updateModule,
 } from "../resources/modules";
-import { stripNullish, toolResult } from "./_helpers";
+import {
+	projectIdField,
+	requireProjectId,
+	stripNullish,
+	toolResult,
+} from "./_helpers";
 
 export function registerModuleTools(
 	server: McpServer,
 	ctx: PlaneAppContext,
 ): void {
+	const pid = projectIdField(ctx);
+
 	server.tool(
 		"list_modules",
 		"List all modules in a project.",
 		{
-			project_id: z.string(),
+			...pid,
 			cursor: z.string().optional(),
 			per_page: z.number().int().min(1).max(100).optional(),
 		},
-		async (args) => {
-			const { project_id, ...rest } = args;
+		async (args: Record<string, unknown>) => {
+			const a = args as { project_id?: string } & Record<string, unknown>;
+			const projectId = requireProjectId(ctx, a);
+			const { project_id: _drop, ...rest } = a;
 			return toolResult(
 				async () =>
 					(
 						await listModules(
 							ctx.config,
 							ctx.workspaceSlug,
-							project_id,
+							projectId,
 							stripNullish(rest),
 						)
 					).results,
@@ -48,7 +57,7 @@ export function registerModuleTools(
 		"create_module",
 		"Create a new module.",
 		{
-			project_id: z.string(),
+			...pid,
 			name: z.string(),
 			description: z.string().optional(),
 			start_date: z.string().optional(),
@@ -59,13 +68,15 @@ export function registerModuleTools(
 			external_source: z.string().optional(),
 			external_id: z.string().optional(),
 		},
-		async (args) => {
-			const { project_id, ...rest } = args;
+		async (args: Record<string, unknown>) => {
+			const a = args as { project_id?: string } & Record<string, unknown>;
+			const projectId = requireProjectId(ctx, a);
+			const { project_id: _drop, ...rest } = a;
 			return toolResult(() =>
 				createModule(
 					ctx.config,
 					ctx.workspaceSlug,
-					project_id,
+					projectId,
 					stripNullish(rest),
 				),
 			)();
@@ -75,14 +86,14 @@ export function registerModuleTools(
 	server.tool(
 		"retrieve_module",
 		"Retrieve a module by ID.",
-		{ project_id: z.string(), module_id: z.string() },
-		async (args) =>
+		{ ...pid, module_id: z.string() },
+		async (args: Record<string, unknown>) =>
 			toolResult(() =>
 				retrieveModule(
 					ctx.config,
 					ctx.workspaceSlug,
-					args.project_id,
-					args.module_id,
+					requireProjectId(ctx, args as { project_id?: string }),
+					args.module_id as string,
 				),
 			)(),
 	);
@@ -91,7 +102,7 @@ export function registerModuleTools(
 		"update_module",
 		"Update a module by ID.",
 		{
-			project_id: z.string(),
+			...pid,
 			module_id: z.string(),
 			name: z.string().optional(),
 			description: z.string().optional(),
@@ -103,13 +114,18 @@ export function registerModuleTools(
 			external_source: z.string().optional(),
 			external_id: z.string().optional(),
 		},
-		async (args) => {
-			const { project_id, module_id, ...rest } = args;
+		async (args: Record<string, unknown>) => {
+			const a = args as {
+				project_id?: string;
+				module_id: string;
+			} & Record<string, unknown>;
+			const projectId = requireProjectId(ctx, a);
+			const { project_id: _drop, module_id, ...rest } = a;
 			return toolResult(() =>
 				updateModule(
 					ctx.config,
 					ctx.workspaceSlug,
-					project_id,
+					projectId,
 					module_id,
 					stripNullish(rest),
 				),
@@ -120,14 +136,14 @@ export function registerModuleTools(
 	server.tool(
 		"delete_module",
 		"Delete a module by ID.",
-		{ project_id: z.string(), module_id: z.string() },
-		async (args) =>
+		{ ...pid, module_id: z.string() },
+		async (args: Record<string, unknown>) =>
 			toolResult(async () => {
 				await deleteModule(
 					ctx.config,
 					ctx.workspaceSlug,
-					args.project_id,
-					args.module_id,
+					requireProjectId(ctx, args as { project_id?: string }),
+					args.module_id as string,
 				);
 				return { ok: true };
 			})(),
@@ -137,19 +153,21 @@ export function registerModuleTools(
 		"list_archived_modules",
 		"List archived modules in a project.",
 		{
-			project_id: z.string(),
+			...pid,
 			cursor: z.string().optional(),
 			per_page: z.number().int().min(1).max(100).optional(),
 		},
-		async (args) => {
-			const { project_id, ...rest } = args;
+		async (args: Record<string, unknown>) => {
+			const a = args as { project_id?: string } & Record<string, unknown>;
+			const projectId = requireProjectId(ctx, a);
+			const { project_id: _drop, ...rest } = a;
 			return toolResult(
 				async () =>
 					(
 						await listArchivedModules(
 							ctx.config,
 							ctx.workspaceSlug,
-							project_id,
+							projectId,
 							stripNullish(rest),
 						)
 					).results,
@@ -161,18 +179,18 @@ export function registerModuleTools(
 		"add_work_items_to_module",
 		"Add work items to a module.",
 		{
-			project_id: z.string(),
+			...pid,
 			module_id: z.string(),
 			work_item_ids: z.array(z.string()),
 		},
-		async (args) =>
+		async (args: Record<string, unknown>) =>
 			toolResult(async () => {
 				await addWorkItemsToModule(
 					ctx.config,
 					ctx.workspaceSlug,
-					args.project_id,
-					args.module_id,
-					args.work_item_ids,
+					requireProjectId(ctx, args as { project_id?: string }),
+					args.module_id as string,
+					args.work_item_ids as string[],
 				);
 				return { ok: true };
 			})(),
@@ -182,18 +200,18 @@ export function registerModuleTools(
 		"remove_work_item_from_module",
 		"Remove a work item from a module.",
 		{
-			project_id: z.string(),
+			...pid,
 			module_id: z.string(),
 			work_item_id: z.string(),
 		},
-		async (args) =>
+		async (args: Record<string, unknown>) =>
 			toolResult(async () => {
 				await removeWorkItemFromModule(
 					ctx.config,
 					ctx.workspaceSlug,
-					args.project_id,
-					args.module_id,
-					args.work_item_id,
+					requireProjectId(ctx, args as { project_id?: string }),
+					args.module_id as string,
+					args.work_item_id as string,
 				);
 				return { ok: true };
 			})(),
@@ -203,20 +221,25 @@ export function registerModuleTools(
 		"list_module_work_items",
 		"List work items in a module.",
 		{
-			project_id: z.string(),
+			...pid,
 			module_id: z.string(),
 			cursor: z.string().optional(),
 			per_page: z.number().int().min(1).max(100).optional(),
 		},
-		async (args) => {
-			const { project_id, module_id, ...rest } = args;
+		async (args: Record<string, unknown>) => {
+			const a = args as {
+				project_id?: string;
+				module_id: string;
+			} & Record<string, unknown>;
+			const projectId = requireProjectId(ctx, a);
+			const { project_id: _drop, module_id, ...rest } = a;
 			return toolResult(
 				async () =>
 					(
 						await listModuleWorkItems(
 							ctx.config,
 							ctx.workspaceSlug,
-							project_id,
+							projectId,
 							module_id,
 							stripNullish(rest),
 						)
@@ -228,14 +251,14 @@ export function registerModuleTools(
 	server.tool(
 		"archive_module",
 		"Archive a module.",
-		{ project_id: z.string(), module_id: z.string() },
-		async (args) =>
+		{ ...pid, module_id: z.string() },
+		async (args: Record<string, unknown>) =>
 			toolResult(async () => {
 				await archiveModule(
 					ctx.config,
 					ctx.workspaceSlug,
-					args.project_id,
-					args.module_id,
+					requireProjectId(ctx, args as { project_id?: string }),
+					args.module_id as string,
 				);
 				return { ok: true };
 			})(),
@@ -244,14 +267,14 @@ export function registerModuleTools(
 	server.tool(
 		"unarchive_module",
 		"Unarchive a module.",
-		{ project_id: z.string(), module_id: z.string() },
-		async (args) =>
+		{ ...pid, module_id: z.string() },
+		async (args: Record<string, unknown>) =>
 			toolResult(async () => {
 				await unarchiveModule(
 					ctx.config,
 					ctx.workspaceSlug,
-					args.project_id,
-					args.module_id,
+					requireProjectId(ctx, args as { project_id?: string }),
+					args.module_id as string,
 				);
 				return { ok: true };
 			})(),

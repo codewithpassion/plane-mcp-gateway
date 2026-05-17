@@ -1,3 +1,4 @@
+import { z } from "zod";
 import type { PlaneAppContext } from "../client";
 import { ConfigurationError } from "../errors";
 
@@ -41,8 +42,16 @@ export function toolResult(
 	};
 }
 
-export function projectIdField(_ctx: PlaneAppContext) {
-	return {} as Record<string, never>;
+/**
+ * Returns the `project_id` schema fragment for tools that need it.
+ * When the config is pinned to a project, returns `{}` so the
+ * parameter disappears from the tool schema entirely.
+ */
+export function projectIdField(
+	ctx: PlaneAppContext,
+): { project_id: z.ZodString } | Record<string, never> {
+	if (ctx.projectId) return {};
+	return { project_id: z.string() };
 }
 
 export function requireProjectId(
@@ -54,4 +63,8 @@ export function requireProjectId(
 		throw new ConfigurationError("project_id is required");
 	}
 	return id;
+}
+
+export function isProjectPinned(ctx: PlaneAppContext): boolean {
+	return Boolean(ctx.projectId);
 }

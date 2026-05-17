@@ -8,28 +8,35 @@ import {
 	retrieveWorkItemLink,
 	updateWorkItemLink,
 } from "../resources/work_item_links";
-import { stripNullish, toolResult } from "./_helpers";
+import {
+	projectIdField,
+	requireProjectId,
+	stripNullish,
+	toolResult,
+} from "./_helpers";
 
 export function registerWorkItemLinkTools(
 	server: McpServer,
 	ctx: PlaneAppContext,
 ): void {
+	const pid = projectIdField(ctx);
+
 	server.tool(
 		"list_work_item_links",
 		"List links for a work item.",
 		{
-			project_id: z.string(),
+			...pid,
 			work_item_id: z.string(),
 		},
-		async (args) =>
+		async (args: Record<string, unknown>) =>
 			toolResult(
 				async () =>
 					(
 						await listWorkItemLinks(
 							ctx.config,
 							ctx.workspaceSlug,
-							args.project_id,
-							args.work_item_id,
+							requireProjectId(ctx, args as { project_id?: string }),
+							args.work_item_id as string,
 						)
 					).results,
 			)(),
@@ -39,18 +46,18 @@ export function registerWorkItemLinkTools(
 		"retrieve_work_item_link",
 		"Retrieve a specific link for a work item.",
 		{
-			project_id: z.string(),
+			...pid,
 			work_item_id: z.string(),
 			link_id: z.string(),
 		},
-		async (args) =>
+		async (args: Record<string, unknown>) =>
 			toolResult(() =>
 				retrieveWorkItemLink(
 					ctx.config,
 					ctx.workspaceSlug,
-					args.project_id,
-					args.work_item_id,
-					args.link_id,
+					requireProjectId(ctx, args as { project_id?: string }),
+					args.work_item_id as string,
+					args.link_id as string,
 				),
 			)(),
 	);
@@ -59,18 +66,18 @@ export function registerWorkItemLinkTools(
 		"create_work_item_link",
 		"Create a link for a work item.",
 		{
-			project_id: z.string(),
+			...pid,
 			work_item_id: z.string(),
 			url: z.string(),
 		},
-		async (args) =>
+		async (args: Record<string, unknown>) =>
 			toolResult(() =>
 				createWorkItemLink(
 					ctx.config,
 					ctx.workspaceSlug,
-					args.project_id,
-					args.work_item_id,
-					stripNullish({ url: args.url }),
+					requireProjectId(ctx, args as { project_id?: string }),
+					args.work_item_id as string,
+					stripNullish({ url: args.url as string }),
 				),
 			)(),
 	);
@@ -79,20 +86,20 @@ export function registerWorkItemLinkTools(
 		"update_work_item_link",
 		"Update a link for a work item.",
 		{
-			project_id: z.string(),
+			...pid,
 			work_item_id: z.string(),
 			link_id: z.string(),
 			url: z.string().optional(),
 		},
-		async (args) =>
+		async (args: Record<string, unknown>) =>
 			toolResult(() =>
 				updateWorkItemLink(
 					ctx.config,
 					ctx.workspaceSlug,
-					args.project_id,
-					args.work_item_id,
-					args.link_id,
-					stripNullish({ url: args.url }),
+					requireProjectId(ctx, args as { project_id?: string }),
+					args.work_item_id as string,
+					args.link_id as string,
+					stripNullish({ url: args.url as string | undefined }),
 				),
 			)(),
 	);
@@ -101,18 +108,18 @@ export function registerWorkItemLinkTools(
 		"delete_work_item_link",
 		"Delete a link for a work item.",
 		{
-			project_id: z.string(),
+			...pid,
 			work_item_id: z.string(),
 			link_id: z.string(),
 		},
-		async (args) =>
+		async (args: Record<string, unknown>) =>
 			toolResult(async () => {
 				await deleteWorkItemLink(
 					ctx.config,
 					ctx.workspaceSlug,
-					args.project_id,
-					args.work_item_id,
-					args.link_id,
+					requireProjectId(ctx, args as { project_id?: string }),
+					args.work_item_id as string,
+					args.link_id as string,
 				);
 				return { ok: true };
 			})(),

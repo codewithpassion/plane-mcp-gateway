@@ -15,29 +15,38 @@ import {
 	unarchiveCycle,
 	updateCycle,
 } from "../resources/cycles";
-import { stripNullish, toolResult } from "./_helpers";
+import {
+	projectIdField,
+	requireProjectId,
+	stripNullish,
+	toolResult,
+} from "./_helpers";
 
 export function registerCycleTools(
 	server: McpServer,
 	ctx: PlaneAppContext,
 ): void {
+	const pid = projectIdField(ctx);
+
 	server.tool(
 		"list_cycles",
 		"List all cycles in a project.",
 		{
-			project_id: z.string(),
+			...pid,
 			cursor: z.string().optional(),
 			per_page: z.number().int().min(1).max(100).optional(),
 		},
-		async (args) => {
-			const { project_id, ...rest } = args;
+		async (args: Record<string, unknown>) => {
+			const a = args as { project_id?: string } & Record<string, unknown>;
+			const projectId = requireProjectId(ctx, a);
+			const { project_id: _drop, ...rest } = a;
 			return toolResult(
 				async () =>
 					(
 						await listCycles(
 							ctx.config,
 							ctx.workspaceSlug,
-							project_id,
+							projectId,
 							stripNullish(rest),
 						)
 					).results,
@@ -49,7 +58,7 @@ export function registerCycleTools(
 		"create_cycle",
 		"Create a new cycle.",
 		{
-			project_id: z.string(),
+			...pid,
 			name: z.string(),
 			owned_by: z.string(),
 			description: z.string().optional(),
@@ -59,14 +68,16 @@ export function registerCycleTools(
 			external_id: z.string().optional(),
 			timezone: z.string().optional(),
 		},
-		async (args) => {
-			const { project_id, ...rest } = args;
+		async (args: Record<string, unknown>) => {
+			const a = args as { project_id?: string } & Record<string, unknown>;
+			const projectId = requireProjectId(ctx, a);
+			const { project_id: _drop, ...rest } = a;
 			return toolResult(() =>
 				createCycle(
 					ctx.config,
 					ctx.workspaceSlug,
-					project_id,
-					stripNullish({ ...rest, project_id }),
+					projectId,
+					stripNullish({ ...rest, project_id: projectId }),
 				),
 			)();
 		},
@@ -75,14 +86,14 @@ export function registerCycleTools(
 	server.tool(
 		"retrieve_cycle",
 		"Retrieve a cycle by ID.",
-		{ project_id: z.string(), cycle_id: z.string() },
-		async (args) =>
+		{ ...pid, cycle_id: z.string() },
+		async (args: Record<string, unknown>) =>
 			toolResult(() =>
 				retrieveCycle(
 					ctx.config,
 					ctx.workspaceSlug,
-					args.project_id,
-					args.cycle_id,
+					requireProjectId(ctx, args as { project_id?: string }),
+					args.cycle_id as string,
 				),
 			)(),
 	);
@@ -91,7 +102,7 @@ export function registerCycleTools(
 		"update_cycle",
 		"Update a cycle by ID.",
 		{
-			project_id: z.string(),
+			...pid,
 			cycle_id: z.string(),
 			name: z.string().optional(),
 			description: z.string().optional(),
@@ -102,13 +113,18 @@ export function registerCycleTools(
 			external_id: z.string().optional(),
 			timezone: z.string().optional(),
 		},
-		async (args) => {
-			const { project_id, cycle_id, ...rest } = args;
+		async (args: Record<string, unknown>) => {
+			const a = args as {
+				project_id?: string;
+				cycle_id: string;
+			} & Record<string, unknown>;
+			const projectId = requireProjectId(ctx, a);
+			const { project_id: _drop, cycle_id, ...rest } = a;
 			return toolResult(() =>
 				updateCycle(
 					ctx.config,
 					ctx.workspaceSlug,
-					project_id,
+					projectId,
 					cycle_id,
 					stripNullish(rest),
 				),
@@ -119,14 +135,14 @@ export function registerCycleTools(
 	server.tool(
 		"delete_cycle",
 		"Delete a cycle by ID.",
-		{ project_id: z.string(), cycle_id: z.string() },
-		async (args) =>
+		{ ...pid, cycle_id: z.string() },
+		async (args: Record<string, unknown>) =>
 			toolResult(async () => {
 				await deleteCycle(
 					ctx.config,
 					ctx.workspaceSlug,
-					args.project_id,
-					args.cycle_id,
+					requireProjectId(ctx, args as { project_id?: string }),
+					args.cycle_id as string,
 				);
 				return { ok: true };
 			})(),
@@ -136,19 +152,21 @@ export function registerCycleTools(
 		"list_archived_cycles",
 		"List archived cycles in a project.",
 		{
-			project_id: z.string(),
+			...pid,
 			cursor: z.string().optional(),
 			per_page: z.number().int().min(1).max(100).optional(),
 		},
-		async (args) => {
-			const { project_id, ...rest } = args;
+		async (args: Record<string, unknown>) => {
+			const a = args as { project_id?: string } & Record<string, unknown>;
+			const projectId = requireProjectId(ctx, a);
+			const { project_id: _drop, ...rest } = a;
 			return toolResult(
 				async () =>
 					(
 						await listArchivedCycles(
 							ctx.config,
 							ctx.workspaceSlug,
-							project_id,
+							projectId,
 							stripNullish(rest),
 						)
 					).results,
@@ -160,18 +178,18 @@ export function registerCycleTools(
 		"add_work_items_to_cycle",
 		"Add work items to a cycle.",
 		{
-			project_id: z.string(),
+			...pid,
 			cycle_id: z.string(),
 			work_item_ids: z.array(z.string()),
 		},
-		async (args) =>
+		async (args: Record<string, unknown>) =>
 			toolResult(async () => {
 				await addWorkItemsToCycle(
 					ctx.config,
 					ctx.workspaceSlug,
-					args.project_id,
-					args.cycle_id,
-					args.work_item_ids,
+					requireProjectId(ctx, args as { project_id?: string }),
+					args.cycle_id as string,
+					args.work_item_ids as string[],
 				);
 				return { ok: true };
 			})(),
@@ -181,18 +199,18 @@ export function registerCycleTools(
 		"remove_work_item_from_cycle",
 		"Remove a work item from a cycle.",
 		{
-			project_id: z.string(),
+			...pid,
 			cycle_id: z.string(),
 			work_item_id: z.string(),
 		},
-		async (args) =>
+		async (args: Record<string, unknown>) =>
 			toolResult(async () => {
 				await removeWorkItemFromCycle(
 					ctx.config,
 					ctx.workspaceSlug,
-					args.project_id,
-					args.cycle_id,
-					args.work_item_id,
+					requireProjectId(ctx, args as { project_id?: string }),
+					args.cycle_id as string,
+					args.work_item_id as string,
 				);
 				return { ok: true };
 			})(),
@@ -202,20 +220,25 @@ export function registerCycleTools(
 		"list_cycle_work_items",
 		"List work items in a cycle.",
 		{
-			project_id: z.string(),
+			...pid,
 			cycle_id: z.string(),
 			cursor: z.string().optional(),
 			per_page: z.number().int().min(1).max(100).optional(),
 		},
-		async (args) => {
-			const { project_id, cycle_id, ...rest } = args;
+		async (args: Record<string, unknown>) => {
+			const a = args as {
+				project_id?: string;
+				cycle_id: string;
+			} & Record<string, unknown>;
+			const projectId = requireProjectId(ctx, a);
+			const { project_id: _drop, cycle_id, ...rest } = a;
 			return toolResult(
 				async () =>
 					(
 						await listCycleWorkItems(
 							ctx.config,
 							ctx.workspaceSlug,
-							project_id,
+							projectId,
 							cycle_id,
 							stripNullish(rest),
 						)
@@ -228,18 +251,18 @@ export function registerCycleTools(
 		"transfer_cycle_work_items",
 		"Transfer work items from one cycle to another.",
 		{
-			project_id: z.string(),
+			...pid,
 			cycle_id: z.string(),
 			new_cycle_id: z.string(),
 		},
-		async (args) =>
+		async (args: Record<string, unknown>) =>
 			toolResult(async () => {
 				await transferCycleWorkItems(
 					ctx.config,
 					ctx.workspaceSlug,
-					args.project_id,
-					args.cycle_id,
-					args.new_cycle_id,
+					requireProjectId(ctx, args as { project_id?: string }),
+					args.cycle_id as string,
+					args.new_cycle_id as string,
 				);
 				return { ok: true };
 			})(),
@@ -248,14 +271,14 @@ export function registerCycleTools(
 	server.tool(
 		"archive_cycle",
 		"Archive a cycle.",
-		{ project_id: z.string(), cycle_id: z.string() },
-		async (args) =>
+		{ ...pid, cycle_id: z.string() },
+		async (args: Record<string, unknown>) =>
 			toolResult(async () => {
 				await archiveCycle(
 					ctx.config,
 					ctx.workspaceSlug,
-					args.project_id,
-					args.cycle_id,
+					requireProjectId(ctx, args as { project_id?: string }),
+					args.cycle_id as string,
 				);
 				return { ok: true };
 			})(),
@@ -264,14 +287,14 @@ export function registerCycleTools(
 	server.tool(
 		"unarchive_cycle",
 		"Unarchive a cycle.",
-		{ project_id: z.string(), cycle_id: z.string() },
-		async (args) =>
+		{ ...pid, cycle_id: z.string() },
+		async (args: Record<string, unknown>) =>
 			toolResult(async () => {
 				await unarchiveCycle(
 					ctx.config,
 					ctx.workspaceSlug,
-					args.project_id,
-					args.cycle_id,
+					requireProjectId(ctx, args as { project_id?: string }),
+					args.cycle_id as string,
 				);
 				return { ok: true };
 			})(),

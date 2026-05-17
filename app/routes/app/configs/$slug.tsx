@@ -6,7 +6,7 @@ import { Button } from "~/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "~/components/ui/card";
 import { Input } from "~/components/ui/input";
 import { Label } from "~/components/ui/label";
-import { type PlaneConfigRecord, useApi } from "~/lib/api";
+import { type PlaneConfigRecord, type PlaneProject, useApi } from "~/lib/api";
 
 export const Route = createFileRoute("/app/configs/$slug")({
 	component: EditConfig,
@@ -30,6 +30,36 @@ function EditConfig() {
 	const [values, setValues] = useState<FormValues | null>(null);
 	const [error, setError] = useState<string | null>(null);
 	const [busy, setBusy] = useState(false);
+	const [projects, setProjects] = useState<PlaneProject[] | null>(null);
+	const [loadingProjects, setLoadingProjects] = useState(false);
+
+	const canLoadProjects = Boolean(
+		values?.baseUrl &&
+			values?.workspaceSlug &&
+			// either the saved record has an API key, or the user typed a new one
+			(record?.apiKey || values?.apiKey),
+	);
+
+	const onLoadProjects = async () => {
+		setLoadingProjects(true);
+		try {
+			// If the user typed a new API key, use the preview endpoint with current
+			// form values; otherwise fetch using the saved config.
+			const list = values?.apiKey
+				? await api.previewProjects({
+						apiKey: values.apiKey,
+						baseUrl: values.baseUrl,
+						workspaceSlug: values.workspaceSlug,
+					})
+				: await api.listSavedConfigProjects(slug);
+			setProjects(list);
+			toast.success(`Loaded ${list.length} project(s)`);
+		} catch (err) {
+			toast.error((err as Error).message);
+		} finally {
+			setLoadingProjects(false);
+		}
+	};
 
 	useEffect(() => {
 		let active = true;
@@ -157,13 +187,38 @@ function EditConfig() {
 						onChange={(v) => update("apiKey", v)}
 						placeholder={record.apiKey}
 					/>
-					<Field
-						id="projectId"
-						label="Default project ID"
-						value={values.projectId ?? ""}
-						onChange={(v) => update("projectId", v)}
-						placeholder="UUID"
-					/>
+					<div className="space-y-1.5">
+						<Label>Default project</Label>
+						<div className="flex flex-wrap items-center gap-2">
+							<Button
+								type="button"
+								variant="outline"
+								onClick={onLoadProjects}
+								disabled={!canLoadProjects || loadingProjects}
+							>
+								{loadingProjects ? "Loading..." : "Load projects"}
+							</Button>
+							{projects && (
+								<select
+									className="flex h-9 rounded-md border border-[var(--color-input)] bg-transparent px-3 py-1 text-sm shadow-sm outline-none focus-visible:ring-1 focus-visible:ring-[var(--color-ring)]"
+									value={values.projectId ?? ""}
+									onChange={(e) => update("projectId", e.target.value)}
+								>
+									<option value="">All projects (no pin)</option>
+									{projects.map((p) => (
+										<option key={p.id} value={p.id}>
+											{p.identifier} — {p.name}
+										</option>
+									))}
+								</select>
+							)}
+						</div>
+						{!projects && values.projectId && (
+							<div className="text-xs text-[var(--color-muted-foreground)]">
+								Currently pinned to project ID: <code>{values.projectId}</code>
+							</div>
+						)}
+					</div>
 
 					<div className="flex flex-wrap gap-2 pt-2">
 						<Button type="submit" disabled={busy}>
