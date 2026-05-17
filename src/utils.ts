@@ -96,7 +96,5 @@ export type Props = {
 	firstName?: string;
 	lastName?: string;
 	imageUrl?: string;
-	role?: string; // from public_metadata
-	metadata?: Record<string, unknown>; // custom fields from public_metadata
 	[key: string]: unknown; // Index signature for McpAgent compatibility
 };

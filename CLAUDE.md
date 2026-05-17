@@ -28,10 +28,10 @@ OAuthProvider responses pass through `wrapOAuthResponse()` (in `src/mcp/mcp-app.
 
 ### Layers
 
-**1. OAuth layer** (`src/clerk-handler.ts`, `src/workers-oauth-utils.ts`) — unchanged. Mints MCP tokens encrypting `Props` (userId, sessionId, email, names, role, metadata).
+**1. OAuth layer** (`src/clerk-handler.ts`, `src/workers-oauth-utils.ts`) — unchanged. Mints MCP tokens encrypting `Props` (userId, sessionId, email, names, imageUrl).
 
 **2. MCP server** (`src/mcp/mcp-app.ts`)
-- `MyMCP` extends `McpAgent`. `init()` registers slug-independent tools only: `add`, `userInfo`, and the role-gated `generateImage`.
+- `MyMCP` extends `McpAgent`. `init()` is empty — Plane tools are registered lazily in `fetch()` once a slug is known. Add slug-independent tools to `init()` if you need any.
 - Override `fetch(request)` reads `X-Plane-Config-Slug`, seals the slug to the DO instance on first request (later requests with a different slug get HTTP 400), lazy-loads the config from `OAUTH_KV` via `loadConfig(env, props.userId, slug)`, and calls `registerPlaneTools()` once. Missing config → 404 (post-auth).
 - DO routing: one DO per MCP session ID (header `mcp-session-id`), so `(session, slug)` pairs map 1:1 in practice — a client only hits one slug per session.
 
@@ -192,9 +192,8 @@ The slug must already exist — create it in the UI at http://localhost:8788/app
 5. **Cloudflare Vite plugin + multi-account**: `bun run dev` fails with "More than one account available" if you have multiple CF accounts and no `CLOUDFLARE_ACCOUNT_ID`. `remoteBindings: false` in `vite.config.ts` avoids the remote proxy session entirely — local miniflare bindings only.
 6. **SSE vs Streamable-HTTP**: `/sse/<slug>` is deprecated; use `/mcp/<slug>` for new clients.
 7. **KV Namespace ID**: must be set in `wrangler.jsonc` (placeholder `<Add-KV-ID>`) before deployment.
-8. **User Roles**: still set via Clerk Dashboard → Users → Metadata → Public → `{"role": "admin"}`. `ALLOWED_ROLES` for `generateImage` defaults to `admin`, `premium`, `image_generation` in `src/mcp/mcp-app.ts`.
-9. **Plane URL paths**: pass paths to `planeFetch` WITHOUT the `/api/v1/` prefix and WITHOUT a trailing slash — the client adds both. Mismatches surface as 404s with HTML bodies.
-10. **Plane work items endpoint**: `/work-items/` (hyphenated), NOT `/issues/`. Older Plane docs still say `issues` — trust the Python SDK paths.
-11. **`wrangler types` drops secrets**: see Environment Types. Don't regenerate without re-adding declarations first.
-12. **Shared tsconfig has DOM lib**: the UI requires `"DOM"` in `compilerOptions.lib`, so server code also has `window`/`document` globally in scope (won't crash at runtime since SSR is fine, just looser typing). Splitting into referenced tsconfigs is a follow-up.
-13. **Route generation**: `tanstackStart()` in `vite.config.ts` uses `routesDirectory: '../app/routes'` (relative to default `srcDirectory: 'src'`). `tsr.config.json` is for the standalone TanStack Router CLI only.
+8. **Plane URL paths**: pass paths to `planeFetch` WITHOUT the `/api/v1/` prefix and WITHOUT a trailing slash — the client adds both. Mismatches surface as 404s with HTML bodies.
+9. **Plane work items endpoint**: `/work-items/` (hyphenated), NOT `/issues/`. Older Plane docs still say `issues` — trust the Python SDK paths.
+10. **`wrangler types` drops secrets**: see Environment Types. Don't regenerate without re-adding declarations first.
+11. **Shared tsconfig has DOM lib**: the UI requires `"DOM"` in `compilerOptions.lib`, so server code also has `window`/`document` globally in scope (won't crash at runtime since SSR is fine, just looser typing). Splitting into referenced tsconfigs is a follow-up.
+12. **Route generation**: `tanstackStart()` in `vite.config.ts` uses `routesDirectory: '../app/routes'` (relative to default `srcDirectory: 'src'`). `tsr.config.json` is for the standalone TanStack Router CLI only.

@@ -4,7 +4,6 @@ import {
 	type RegisteredTool,
 } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { McpAgent } from "agents/mcp";
-import { z } from "zod";
 import { ClerkHandler } from "../clerk-handler";
 import { loadConfig } from "../plane/storage";
 import { registerPlaneTools } from "../plane/tools";
@@ -36,11 +35,9 @@ function registerPlaneToolsTracked(
 	return tracked;
 }
 
-const ALLOWED_ROLES = new Set<string>(["admin", "premium", "image_generation"]);
-
 export class MyMCP extends McpAgent<Env, Record<string, never>, Props> {
 	server = new McpServer({
-		name: "Clerk OAuth Proxy Demo",
+		name: "Plane MCP Gateway",
 		version: "1.0.0",
 	});
 
@@ -48,79 +45,7 @@ export class MyMCP extends McpAgent<Env, Record<string, never>, Props> {
 	private planeTools: RegisteredTool[] = [];
 	private planeCfgVersion?: string;
 
-	async init() {
-		this.server.tool(
-			"add",
-			"Add two numbers the way only MCP can",
-			{ a: z.number(), b: z.number() },
-			async ({ a, b }) => ({
-				content: [{ text: String(a + b), type: "text" }],
-			}),
-		);
-
-		this.server.tool(
-			"userInfo",
-			"Get authenticated user information from Clerk",
-			{},
-			async () => ({
-				content: [
-					{
-						text: JSON.stringify(
-							{
-								userId: this.props?.userId,
-								sessionId: this.props?.sessionId,
-								email: this.props?.email,
-								firstName: this.props?.firstName,
-								lastName: this.props?.lastName,
-								imageUrl: this.props?.imageUrl,
-								role: this.props?.role,
-								metadata: this.props?.metadata,
-							},
-							null,
-							2,
-						),
-						type: "text",
-					},
-				],
-			}),
-		);
-
-		if (this.props?.role && ALLOWED_ROLES.has(this.props.role)) {
-			this.server.tool(
-				"generateImage",
-				"Generate an image using the `flux-1-schnell` model. Works best with 8 steps.",
-				{
-					prompt: z
-						.string()
-						.describe("A text description of the image you want to generate."),
-					steps: z
-						.number()
-						.min(4)
-						.max(8)
-						.default(4)
-						.describe(
-							"The number of diffusion steps; higher values can improve quality but take longer. Must be between 4 and 8, inclusive.",
-						),
-				},
-				async ({ prompt, steps }) => {
-					const response = await this.env.AI.run(
-						"@cf/black-forest-labs/flux-1-schnell",
-						{ prompt, steps },
-					);
-
-					if (!response.image) {
-						throw new Error("Failed to generate image");
-					}
-
-					return {
-						content: [
-							{ data: response.image, mimeType: "image/jpeg", type: "image" },
-						],
-					};
-				},
-			);
-		}
-	}
+	async init() {}
 
 	async fetch(request: Request): Promise<Response> {
 		const slug = request.headers.get("X-Plane-Config-Slug") ?? undefined;

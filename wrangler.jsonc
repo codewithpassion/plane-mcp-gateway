@@ -41,9 +41,6 @@
 			"id": "74ef76f891b24987a6230480e8a454da"
 		}
 	],
-	"ai": {
-		"binding": "AI"
-	},
 	"observability": {
 		"enabled": true
 	},

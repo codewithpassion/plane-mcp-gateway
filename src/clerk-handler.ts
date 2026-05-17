@@ -187,7 +187,7 @@ async function redirectToClerk(
 			location: getUpstreamAuthorizeUrl({
 				client_id: env.CLERK_CLIENT_ID,
 				redirect_uri: redirectUri,
-				scope: "openid profile email public_metadata",
+				scope: "openid profile email offline_access",
 				state: stateToken,
 				upstream_url: `${env.CLERK_FRONTEND_API}/oauth/authorize`,
 			}),
@@ -291,12 +291,6 @@ app.get("/callback", async (c) => {
 	const lastName = verifiedToken.family_name as string | undefined;
 	const imageUrl = verifiedToken.picture as string | undefined;
 
-	// Extract role from public_metadata if available
-	console.log("Verified token claims:", verifiedToken);
-	const publicMetadata =
-		(verifiedToken.public_metadata as Record<string, unknown>) || {};
-	const role = publicMetadata.role as string | undefined;
-
 	// Return back to the MCP client a new token
 	const { redirectTo } = await c.env.OAUTH_PROVIDER.completeAuthorization({
 		metadata: {
@@ -311,8 +305,6 @@ app.get("/callback", async (c) => {
 			firstName,
 			lastName,
 			imageUrl,
-			role,
-			metadata: publicMetadata,
 		} as Props,
 		request: oauthReqInfo,
 		scope: oauthReqInfo.scope,

@@ -16,7 +16,6 @@ declare namespace Cloudflare {
 		CLERK_CLIENT_ID: string;
 		CLERK_CLIENT_SECRET: string;
 		MCP_OBJECT: DurableObjectNamespace<import("./src/server").MyMCP>;
-		AI: Ai;
 	}
 }
 interface Env extends Cloudflare.Env {}

@@ -111,14 +111,11 @@ The gateway acts as an OAuth **client** to Clerk (Clerk is the upstream identity
    - `openid`
    - `profile`
    - `email`
-   - `public_metadata` — needed so the role-based `generateImage` tool can read `publicMetadata.role`
    - `offline_access` — needed so MCP clients can refresh tokens without re-prompting the user
 5. Copy these values, you'll need them as worker secrets:
    - **Client ID** and **Client secret** from the OAuth application you just created → `CLERK_CLIENT_ID`, `CLERK_CLIENT_SECRET`
    - **Secret key** (`sk_…`) and **Publishable key** (`pk_…`) from **API keys** → `CLERK_SECRET_KEY`, `CLERK_PUBLISHABLE_KEY`
    - **Frontend API URL** (e.g. `https://your-subdomain.clerk.accounts.dev`) → `CLERK_FRONTEND_API`
-
-User roles (for the optional `generateImage` tool) are set per-user under **Users → \<user\> → Metadata → Public metadata**, e.g. `{"role": "admin"}`. The default allowed roles are `admin`, `premium`, `image_generation`; see `ALLOWED_ROLES` in `src/mcp/mcp-app.ts`.
 
 ### Production deployment
 
@@ -186,7 +183,7 @@ You can toggle pinning at any time from the config's edit page. Existing MCP ses
 
 Two kinds of tools:
 
-1. **Top-level tools** — available to every authenticated user regardless of config. Register in `MyMCP.init()` in `src/mcp/mcp-app.ts`. Examples: `add`, `userInfo`, the role-gated `generateImage`.
+1. **Top-level tools** — available to every authenticated user regardless of config. Register in `MyMCP.init()` in `src/mcp/mcp-app.ts`.
 
 2. **Plane tools** — per-config, registered per request. Add to `src/plane/tools/<resource>.ts`:
    ```ts
