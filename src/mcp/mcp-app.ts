@@ -151,14 +151,50 @@ export class MyMCP extends McpAgent<Env, Record<string, never>, Props> {
 
 const INSTRUCTIONS_PROJECT_CAP = 50;
 
+/**
+ * Derive the Plane web app base URL (no trailing slash) from the API base URL.
+ * - Cloud: `https://api.plane.so` → `https://app.plane.so`.
+ * - Self-hosted: same host as the API (Plane serves UI + `/api/v1` from one host).
+ */
+function deriveAppBaseUrl(apiBaseUrl: string | undefined): string {
+	const raw = apiBaseUrl ?? "https://api.plane.so";
+	try {
+		const u = new URL(raw);
+		if (u.hostname === "api.plane.so") u.hostname = "app.plane.so";
+		return `${u.protocol}//${u.host}`;
+	} catch {
+		return "https://app.plane.so";
+	}
+}
+
+function workspaceUrl(cfg: PlaneConfigRecord): string {
+	return `${deriveAppBaseUrl(cfg.baseUrl)}/${cfg.planeWorkspaceSlug}`;
+}
+
+function urlPatternHint(cfg: PlaneConfigRecord): string {
+	const ws = workspaceUrl(cfg);
+	return [
+		"URL patterns for this workspace (use these verbatim when answering 'what's the URL of …'):",
+		`- Work item: ${ws}/projects/<project_id>/work-items/<work_item_id>/`,
+		`- Project home: ${ws}/projects/<project_id>/`,
+		`- Cycle: ${ws}/projects/<project_id>/cycles/<cycle_id>/`,
+		`- Module: ${ws}/projects/<project_id>/modules/<module_id>/`,
+		`- Page: ${ws}/projects/<project_id>/pages/<page_id>/`,
+	].join("\n");
+}
+
 function renderWorkspaceBanner(cfg: PlaneConfigRecord): string {
-	return `This MCP server is connected to the Plane workspace "${cfg.planeWorkspaceSlug}".`;
+	return `This MCP server is connected to the Plane workspace "${cfg.planeWorkspaceSlug}" at ${workspaceUrl(cfg)}/.`;
 }
 
 function renderPinnedInstructions(cfg: PlaneConfigRecord): string {
 	const name = cfg.projectName ?? "(unnamed)";
 	const ident = cfg.projectIdentifier ? ` (${cfg.projectIdentifier})` : "";
-	return `This MCP server is pinned to project "${name}"${ident} in Plane workspace "${cfg.planeWorkspaceSlug}". Tools that operate on a project act on this pinned project automatically — no project_id parameter is required.`;
+	const banner = `This MCP server is pinned to project "${name}"${ident} in Plane workspace "${cfg.planeWorkspaceSlug}" at ${workspaceUrl(cfg)}/. Tools that operate on a project act on this pinned project automatically — no project_id parameter is required.`;
+	const pinned = cfg.projectId
+		? `\n\nPinned project_id: ${cfg.projectId}\nProject home: ${workspaceUrl(cfg)}/projects/${cfg.projectId}/`
+		: "";
+	return `${banner}${pinned}\n\n${urlPatternHint(cfg)}`;
 }
 
 function renderUnpinnedInstructions(
@@ -167,7 +203,7 @@ function renderUnpinnedInstructions(
 ): string {
 	const banner = renderWorkspaceBanner(cfg);
 	if (projects.length === 0) {
-		return `${banner}\n\nNo projects found in this workspace. Use \`create_project\` to add one.`;
+		return `${banner}\n\nNo projects found in this workspace. Use \`create_project\` to add one.\n\n${urlPatternHint(cfg)}`;
 	}
 	const lines = projects
 		.filter((p) => p.id)
@@ -177,7 +213,7 @@ function renderUnpinnedInstructions(
 	const footer = capped
 		? `\n\nThis list is capped at ${INSTRUCTIONS_PROJECT_CAP} projects. Call \`list_projects\` to page through the full set.`
 		: "\n\nIf a project you need is not listed, call `list_projects` for the full set.";
-	return `${banner}\n\nAvailable projects (use the \`id\` as the \`project_id\` parameter):\n${lines}${footer}\nWhen a tool requires \`project_id\`, pick the matching id from this list.`;
+	return `${banner}\n\nAvailable projects (use the \`id\` as the \`project_id\` parameter):\n${lines}${footer}\nWhen a tool requires \`project_id\`, pick the matching id from this list.\n\n${urlPatternHint(cfg)}`;
 }
 
 export const oauthProvider = new OAuthProvider({
