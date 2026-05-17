@@ -146,6 +146,9 @@ export class MyMCP extends McpAgent<Env, Record<string, never>, Props> {
 			expiresAt: now + ttlMs,
 			text,
 		};
+		console.log(
+			`[mcp] instructions set for slug="${this.slug}" cfgVersion=${cfg.updatedAt} ttlMs=${ttlMs} length=${text.length}\n----- instructions begin -----\n${text}\n----- instructions end -----`,
+		);
 	}
 }
 
