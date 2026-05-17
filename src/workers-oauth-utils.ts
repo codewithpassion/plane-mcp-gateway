@@ -889,7 +889,8 @@ async function verifySignature(
 	const enc = new TextEncoder();
 	try {
 		const signatureBytes = new Uint8Array(
-			signatureHex.match(/.{1,2}/g)?.map((byte) => Number.parseInt(byte, 16)),
+			signatureHex.match(/.{1,2}/g)?.map((byte) => Number.parseInt(byte, 16)) ??
+				[],
 		);
 		return await crypto.subtle.verify(
 			"HMAC",

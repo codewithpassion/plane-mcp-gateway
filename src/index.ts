@@ -3,6 +3,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { McpAgent } from "agents/mcp";
 import { z } from "zod";
 import { ClerkHandler } from "./clerk-handler";
+import { registerPlaneTools } from "./plane/tools";
 import type { Props } from "./utils";
 
 // Roles that have access to the image generation tool
@@ -60,6 +61,22 @@ export class MyMCP extends McpAgent<Env, Record<string, never>, Props> {
 				};
 			},
 		);
+
+		// Register Plane tools (Phase 1 — driven by env vars)
+		const planeApiKey = (this.env as unknown as { PLANE_API_KEY?: string })
+			.PLANE_API_KEY;
+		const planeWorkspaceSlug = (
+			this.env as unknown as { PLANE_WORKSPACE_SLUG?: string }
+		).PLANE_WORKSPACE_SLUG;
+		const planeBaseUrl =
+			(this.env as unknown as { PLANE_BASE_URL?: string }).PLANE_BASE_URL ??
+			"https://api.plane.so";
+		if (planeApiKey && planeWorkspaceSlug) {
+			registerPlaneTools(this.server, {
+				config: { apiKey: planeApiKey, baseUrl: planeBaseUrl },
+				workspaceSlug: planeWorkspaceSlug,
+			});
+		}
 
 		console.log("User props:", this.props);
 		// Dynamically add tools based on the user's role
