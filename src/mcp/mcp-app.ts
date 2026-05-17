@@ -53,7 +53,15 @@ export class MyMCP extends McpAgent<Env, Record<string, never>, Props> {
 	private static readonly INSTRUCTIONS_TTL_MS = 5 * 60_000;
 	private static readonly INSTRUCTIONS_FAILURE_TTL_MS = 60_000;
 
-	async init() {}
+	async init() {
+		// Pre-initialize the tools request handlers before McpAgent.onStart
+		// connects the transport. Without this, the first `server.tool()` call
+		// inside `fetch()` would try to register capabilities post-connect and
+		// throw "Cannot register capabilities after connecting to transport".
+		(
+			this.server as unknown as { setToolRequestHandlers(): void }
+		).setToolRequestHandlers();
+	}
 
 	async fetch(request: Request): Promise<Response> {
 		const slug = request.headers.get("X-Plane-Config-Slug") ?? undefined;
