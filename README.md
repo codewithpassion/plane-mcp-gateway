@@ -1,164 +1,211 @@
-# Model Context Protocol (MCP) Server + Clerk OAuth
+# Plane MCP Gateway
 
-This is a [Model Context Protocol (MCP)](https://modelcontextprotocol.io/introduction) server that supports remote MCP connections, with Clerk OAuth built-in.
+A multi-tenant [Model Context Protocol](https://modelcontextprotocol.io) gateway for [Plane](https://plane.so). Each authenticated user can register multiple Plane workspaces / projects through a web UI and expose each one as its own MCP endpoint at `/mcp/<slug>`. MCP clients authenticate via OAuth 2.1 (Clerk as the upstream identity provider) and get a per-config tool surface backed by the user's Plane API key.
 
-You can deploy it to your own Cloudflare account, and after you create your own Clerk OAuth application, you'll have a fully functional remote MCP server that you can build off. Users will be able to connect to your MCP server by signing in with Clerk.
+![Plane configurations dashboard](docs/screenshot.png)
 
-You can use this as a reference example for how to integrate other OAuth providers with an MCP server deployed to Cloudflare, using the [`workers-oauth-provider` library](https://github.com/cloudflare/workers-oauth-provider).
+Built on Cloudflare Workers (Durable Objects + KV) with TanStack Start for the UI, [`@cloudflare/workers-oauth-provider`](https://github.com/cloudflare/workers-oauth-provider) for OAuth, and [`@clerk/backend`](https://clerk.com) for identity.
 
-The MCP server (powered by [Cloudflare Workers](https://developers.cloudflare.com/workers/)):
+## Features
 
-* Acts as OAuth _Server_ to your MCP clients
-* Acts as OAuth _Client_ to your _real_ OAuth server (in this case, Clerk)
+- **Multi-tenant by URL slug** — one account, many configs. `/mcp/work`, `/mcp/personal`, etc. each carry their own Plane workspace, API key, and tool set.
+- **~109 Plane tools** ported from the official [`plane-mcp-server`](https://github.com/makeplane/plane-mcp-server): work items, cycles, modules, epics, milestones, intake, labels, states, pages, comments, links, work logs, properties, types, members, features, and more.
+- **Project pinning** — optionally lock a config to a single Plane project. When pinned, the `project_id` parameter is automatically removed from every tool schema and project-management tools (`list_projects`, `create_project`, `delete_project`) are hidden. This makes LLM interactions noticeably faster because the model never has to discover or pass a project id.
+- **Live tool refresh** — change a config in the UI and connected MCP sessions see `notifications/tools/list_changed` within seconds. No reconnect needed. If a config is deleted mid-session the next request returns `410 Gone`.
+- **OAuth 2.1 for MCP clients** — Clerk handles user auth; the gateway mints MCP-side tokens that encrypt the user's Clerk identity. Compatible with `mcp-remote`, MCP Inspector, Claude Desktop, Cursor, Windsurf, etc.
+- **Test-from-UI** — every config gets a "Test connection" button that pings the Plane API end-to-end (workspace + api key) and surfaces the actual error message on failure.
+- **Per-user isolation** — KV keys are namespaced by Clerk user id (`plane:cfg:<userId>:<slug>`); a config is only visible to its owner.
 
-> [!WARNING]
-> This is a demo template designed to help you get started quickly. While we have implemented several security controls, **you must implement all preventive and defense-in-depth security measures before deploying to production**. Please review our comprehensive security guide: [Securing MCP Servers](https://github.com/cloudflare/agents/blob/main/docs/securing-mcp-servers.md)
-
-## Getting Started
-
-Clone the repo directly & install dependencies: `npm install`.
-
-Alternatively, you can use the command line below to get the remote MCP Server created on your local machine:
-```bash
-npm create cloudflare@latest -- my-mcp-server --template=cloudflare/ai/demos/remote-mcp-clerk-oauth
-```
-
-### For Production
-Create a new Clerk application and OAuth configuration:
-1. Sign up or log in at [Clerk Dashboard](https://dashboard.clerk.com)
-2. Create a new application
-3. Go to **OAuth Applications** and create a new OAuth application
-4. Set the redirect URI to: `https://mcp-clerk-oauth.<your-subdomain>.workers.dev/callback`
-5. Note your Client ID and Client Secret
-6. Get your Secret Key from **API Keys** (starts with `sk_live_`)
-7. Note your Frontend API URL (e.g., `https://your-subdomain.clerk.accounts.dev`)
-
-Set secrets via Wrangler:
-```bash
-wrangler secret put CLERK_CLIENT_ID
-wrangler secret put CLERK_CLIENT_SECRET
-wrangler secret put CLERK_SECRET_KEY
-wrangler secret put CLERK_FRONTEND_API
-wrangler secret put COOKIE_ENCRYPTION_KEY # generate with: openssl rand -hex 32
-```
-
-> [!IMPORTANT]
-> When you create the first secret, Wrangler will ask if you want to create a new Worker. Submit "Y" to create a new Worker and save the secret.
-
-#### Set up a KV namespace
-- Create the KV namespace: 
-`wrangler kv namespace create "OAUTH_KV"`
-- Update the Wrangler file with the KV ID
-
-#### Deploy & Test
-Deploy the MCP server to make it available on your workers.dev domain 
-` wrangler deploy`
-
-Test the remote server using [Inspector](https://modelcontextprotocol.io/docs/tools/inspector):
+## Architecture
 
 ```
-npx @modelcontextprotocol/inspector@latest
-```
-Enter `https://mcp-clerk-oauth.<your-subdomain>.workers.dev/mcp` (or `/sse` for deprecated protocol) and hit connect. Once you go through the authentication flow, you'll see the Tools working: 
-
-<img width="640" alt="image" src="https://github.com/user-attachments/assets/7973f392-0a9d-4712-b679-6dd23f824287" />
-
-You now have a remote MCP server deployed! 
-
-### Access Control
-
-This MCP server uses Clerk OAuth for authentication. All authenticated users can access basic tools like "add" and "userInfo".
-
-The "generateImage" tool is restricted to specific roles using role-based access control (RBAC):
-
-```typescript
-// Roles that have access to the image generation tool
-const ALLOWED_ROLES = new Set([
-  'admin',
-  'premium'
-]);
+                                   ┌───────────────────┐
+                                   │ TanStack Start UI │  /app/configs
+   browser  ──────cookie auth───── │  + Hono /api/*    │  /api/configs/...
+                                   └─────────┬─────────┘
+                                             │ KV: plane:cfg:<userId>:<slug>
+                                             ▼
+┌──────────────┐         ┌─────────────────────────────────┐
+│ MCP client   │ ──OAuth─▶ @cloudflare/workers-oauth-provider │
+│ (Claude etc) │         └─────────────┬───────────────────┘
+└──────────────┘                       │
+                                       ▼
+                            ┌──────────────────────┐
+            /mcp/<slug> ───▶│ MyMCP Durable Object │ ──▶ Plane API
+                            │ (per session)        │     (per-config key)
+                            └──────────────────────┘
 ```
 
-To set a user's role in Clerk Dashboard:
-1. Go to **Users** → select a user
-2. Click on **Metadata** tab
-3. Under **Public metadata**, add: `{"role": "admin"}`
-4. Save changes
+Top-level dispatch in `src/server.ts`:
 
-### Access the remote MCP server from Claude Desktop
+| Path pattern | Handler |
+| --- | --- |
+| `/(mcp\|sse)/<slug>(/...)` | strip slug, set `X-Plane-Config-Slug`, forward to OAuthProvider |
+| `/authorize`, `/callback`, `/register`, `/token`, `/.well-known/*` | OAuthProvider |
+| `/api/...` | Hono app (`src/api/index.ts`), Clerk session auth |
+| anything else | TanStack Start (UI) |
 
-Open Claude Desktop and navigate to Settings -> Developer -> Edit Config. This opens the configuration file that controls which MCP servers Claude can access.
+On each MCP request the Durable Object reloads the config from KV, compares `updatedAt` to the last-registered version, and tears down / re-registers Plane tools if it has changed. The MCP SDK emits `notifications/tools/list_changed` automatically. KV is eventually consistent across colos, so changes typically propagate within seconds (up to ~60 s worst case).
 
-Replace the content with the following configuration. Once you restart Claude Desktop, a browser window will open showing your OAuth login page. Complete the authentication flow to grant Claude access to your MCP server. After you grant access, the tools will become available for you to use. 
+## Getting started
 
-```
+### Prerequisites
+
+- [Bun](https://bun.sh)
+- A [Clerk](https://clerk.com) application
+- A Cloudflare account (for deployment)
+
+### Local development
+
+1. **Install dependencies**
+   ```bash
+   bun install
+   ```
+
+2. **Create a Clerk application** at https://dashboard.clerk.com.
+   - Create an OAuth application inside it (used for MCP-side OAuth).
+   - Set its redirect URI to `http://localhost:8788/callback`.
+   - Note the client id, client secret, secret key (`sk_…`), publishable key (`pk_…`), and frontend API URL.
+
+3. **Configure environment**
+   ```bash
+   cp .env.example .env
+   ```
+   Fill in:
+   ```env
+   CLERK_CLIENT_ID=...
+   CLERK_CLIENT_SECRET=...
+   CLERK_SECRET_KEY=sk_test_...
+   CLERK_PUBLISHABLE_KEY=pk_test_...
+   CLERK_FRONTEND_API=https://your-subdomain.clerk.accounts.dev
+   COOKIE_ENCRYPTION_KEY=<openssl rand -hex 32>
+   ```
+
+4. **Run the dev server**
+   ```bash
+   bun run dev
+   ```
+   Open http://localhost:8788. Sign in, go to **Plane configurations**, click **New config**, and fill in:
+   - **Slug** — URL identifier (lowercase, hyphens; 2–63 chars). Your MCP endpoint becomes `/mcp/<slug>`.
+   - **Display name** — friendly label.
+   - **Plane workspace slug** — from your Plane workspace URL.
+   - **Plane API key** — from Plane → Settings → API tokens.
+   - **Base URL** *(optional)* — defaults to `https://api.plane.so`. Set this for self-hosted Plane.
+   - **Pinned project** *(optional)* — click **Load projects**, pick one to lock the config to a single project.
+
+5. **Test with MCP Inspector**
+   ```bash
+   bunx @modelcontextprotocol/inspector@latest
+   ```
+   Connect to `http://localhost:8788/mcp/<your-slug>` and complete the OAuth flow.
+
+### Production deployment
+
+1. Update the Clerk OAuth application's redirect URI to `https://<your-host>/callback`.
+2. Create the KV namespace and copy the id into `wrangler.jsonc`:
+   ```bash
+   wrangler kv namespace create OAUTH_KV
+   ```
+3. Set secrets:
+   ```bash
+   wrangler secret put CLERK_CLIENT_ID
+   wrangler secret put CLERK_CLIENT_SECRET
+   wrangler secret put CLERK_SECRET_KEY
+   wrangler secret put CLERK_PUBLISHABLE_KEY
+   wrangler secret put CLERK_FRONTEND_API
+   wrangler secret put COOKIE_ENCRYPTION_KEY
+   ```
+4. Deploy:
+   ```bash
+   bun run deploy
+   ```
+
+## Connecting MCP clients
+
+Each config exposes both transports:
+
+- `https://<host>/mcp/<slug>` — Streamable HTTP (preferred)
+- `https://<host>/sse/<slug>` — SSE (deprecated, still supported)
+
+### Claude Desktop / Cursor / Windsurf
+
+Use [`mcp-remote`](https://www.npmjs.com/package/mcp-remote) as a stdio adapter, since most desktop clients don't yet ship OAuth-capable remote transports:
+
+```json
 {
   "mcpServers": {
-    "clerk-mcp": {
+    "plane-work": {
       "command": "npx",
-      "args": [
-        "mcp-remote",
-        "https://mcp-clerk-oauth.<your-subdomain>.workers.dev/mcp"
-      ]
+      "args": ["mcp-remote", "https://<your-host>/mcp/work"]
     }
   }
 }
 ```
 
-Once the Tools (under 🔨) show up in the interface, you can ask Claude to use them. For example: "Could you use the math tool to add 23 and 19?". Claude should invoke the tool and show the result generated by the MCP server.
+The first connection opens a browser for the Clerk OAuth flow; tokens are cached locally afterward.
 
-### For Local Development
-If you'd like to iterate and test your MCP server, you can do so in local development:
+### Native HTTP clients
 
-1. In Clerk Dashboard, update your OAuth application's redirect URI to include `http://localhost:8788/callback`
-2. Copy `.env.example` to `.env` and fill in your Clerk credentials:
-```
-CLERK_CLIENT_ID=your_clerk_client_id
-CLERK_CLIENT_SECRET=your_clerk_client_secret
-CLERK_SECRET_KEY=sk_test_...
-CLERK_FRONTEND_API=https://your-subdomain.clerk.accounts.dev
-COOKIE_ENCRYPTION_KEY=<generate-with-openssl-rand-hex-32>
-```
+Clients that speak OAuth 2.1 + Streamable HTTP can connect directly to `https://<host>/mcp/<slug>`. Discovery is published at `/.well-known/oauth-authorization-server` and `/.well-known/oauth-protected-resource` per RFC 9728.
 
-#### Develop & Test
-Run the server locally to make it available at `http://localhost:8788`
-```bash
-npm run dev  # or: wrangler dev
-```
+## Project pinning
 
-To test the local server, enter `http://localhost:8788/mcp` (or `/sse` for deprecated protocol) into Inspector and hit connect. Once you follow the prompts, you'll be able to "List Tools". 
+A config is in one of two modes:
 
-#### Using Claude and other MCP Clients
+| Mode | `project_id` parameter | `list_projects` / `create_project` / `delete_project` |
+| --- | --- | --- |
+| **All projects** (default) | required on every tool that touches a project | available |
+| **Pinned to one project** | removed from every tool schema | hidden |
 
-When using Claude to connect to your remote MCP server, you may see some error messages. This is because Claude Desktop doesn't yet support remote MCP servers, so it sometimes gets confused. To verify whether the MCP server is connected, hover over the 🔨 icon in the bottom right corner of Claude's interface. You should see your tools available there.
+Pinning is the right choice when an MCP session is scoped to one project — it eliminates a tool round-trip the LLM otherwise has to make to resolve the project id, and keeps the visible tool list focused.
 
-#### Using Cursor and other MCP Clients
+You can toggle pinning at any time from the config's edit page. Existing MCP sessions pick up the change automatically on their next request.
 
-To connect Cursor with your MCP server, choose `Type`: "Command" and in the `Command` field, combine the command and args fields into one (e.g. `npx mcp-remote https://<your-worker-name>.<your-subdomain>.workers.dev/sse`).
+## Adding tools
 
-Note that while Cursor supports HTTP+SSE servers, it doesn't support authentication, so you still need to use `mcp-remote` (and to use a STDIO server, not an HTTP one).
+Two kinds of tools:
 
-You can connect your MCP server to other MCP clients like Windsurf by opening the client's configuration file, adding the same JSON that was used for the Claude setup, and restarting the MCP client.
+1. **Top-level tools** — available to every authenticated user regardless of config. Register in `MyMCP.init()` in `src/mcp/mcp-app.ts`. Examples: `add`, `userInfo`, the role-gated `generateImage`.
 
-## How does it work? 
+2. **Plane tools** — per-config, registered per request. Add to `src/plane/tools/<resource>.ts`:
+   ```ts
+   server.tool(
+     "snake_case_name",
+     "human-readable description",
+     { ...projectIdField(ctx), other_param: z.string() },
+     async (input) =>
+       toolResult(() =>
+         resource.method(ctx.config, ctx.workspaceSlug, {
+           project_id: requireProjectId(ctx, input),
+           other_param: input.other_param,
+         }),
+       ),
+   );
+   ```
+   The HTTP call lives in `src/plane/resources/<resource>.ts`. Wire new resources into `src/plane/tools/index.ts`.
 
-#### OAuth Provider
-The OAuth Provider library serves as a complete OAuth 2.1 server implementation for Cloudflare Workers. It handles the complexities of the OAuth flow, including token issuance, validation, and management. In this project, it plays the dual role of:
+See `CLAUDE.md` for the full architecture reference (Plane URL conventions, helper functions, common gotchas).
 
-- Authenticating MCP clients that connect to your server
-- Managing the connection to Clerk's OAuth services
-- Securely storing tokens and authentication state in KV storage
+## Tech stack
 
-#### Durable MCP
-Durable MCP extends the base MCP functionality with Cloudflare's Durable Objects, providing:
-- Persistent state management for your MCP server
-- Secure storage of authentication context between requests
-- Access to authenticated user information via `this.props`
-- Support for conditional tool availability based on user identity
+- [Cloudflare Workers](https://developers.cloudflare.com/workers/) + Durable Objects + KV
+- [`@cloudflare/workers-oauth-provider`](https://github.com/cloudflare/workers-oauth-provider) — OAuth 2.1 server
+- [`@clerk/backend`](https://clerk.com) + [`@clerk/tanstack-react-start`](https://clerk.com) — identity
+- [`@modelcontextprotocol/sdk`](https://github.com/modelcontextprotocol/typescript-sdk) + [`agents`](https://github.com/cloudflare/agents) — Durable MCP
+- [TanStack Start](https://tanstack.com/start) + [TanStack Router](https://tanstack.com/router) — UI
+- [Hono](https://hono.dev) — `/api/*`
+- [shadcn/ui](https://ui.shadcn.com) + Tailwind v4 — components
+- [Zod](https://zod.dev) — schema validation
+- [Bun](https://bun.sh) — package manager / runtime
 
-#### MCP Remote
-The MCP Remote library enables your server to expose tools that can be invoked by MCP clients like the Inspector. It:
-- Defines the protocol for communication between clients and your server
-- Provides a structured way to define tools
-- Handles serialization and deserialization of requests and responses
-- Maintains the Server-Sent Events (SSE) connection between clients and your server
+## Security notes
+
+- Each config's Plane API key is stored in KV under a user-scoped key. The plaintext key is **never** returned over the HTTP API — list/get/patch responses always show `••••<last4>`.
+- OAuth state cookies are `__Host-`-prefixed, HTTP-only, one-time-use, and bound to a 10-minute KV-side TTL.
+- The OAuth metadata response is rewritten to `https://` on non-local hosts to support tunneled deployments.
+- `WWW-Authenticate` headers on 401s include `resource_metadata=` per RFC 9728.
+- Envelope-encrypting Plane API keys with `COOKIE_ENCRYPTION_KEY` is a planned follow-up; for now treat the KV namespace as sensitive.
+
+## License
+
+[Apache 2.0](LICENSE)
