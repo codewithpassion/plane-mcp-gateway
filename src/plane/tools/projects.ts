@@ -19,6 +19,7 @@ import {
 	stripNullish,
 	toolResult,
 } from "./_helpers";
+import { withWebUrl } from "./_web_url";
 
 export function registerProjectTools(
 	server: McpServer,
@@ -39,8 +40,10 @@ export function registerProjectTools(
 				order_by: z.string().optional(),
 			},
 			async (args: Record<string, unknown>) =>
-				toolResult(
-					async () =>
+				toolResult(async () =>
+					withWebUrl(
+						ctx,
+						"project",
 						(
 							await listProjects(
 								ctx.config,
@@ -48,6 +51,7 @@ export function registerProjectTools(
 								stripNullish(args),
 							)
 						).results,
+					),
 				)(),
 		);
 
@@ -76,8 +80,16 @@ export function registerProjectTools(
 				is_issue_type_enabled: z.boolean().optional(),
 			},
 			async (args: Record<string, unknown>) =>
-				toolResult(() =>
-					createProject(ctx.config, ctx.workspaceSlug, stripNullish(args)),
+				toolResult(async () =>
+					withWebUrl(
+						ctx,
+						"project",
+						await createProject(
+							ctx.config,
+							ctx.workspaceSlug,
+							stripNullish(args),
+						),
+					),
 				)(),
 		);
 
@@ -102,11 +114,15 @@ export function registerProjectTools(
 		"Retrieve a project by ID.",
 		{ ...pid },
 		async (args: Record<string, unknown>) =>
-			toolResult(() =>
-				retrieveProject(
-					ctx.config,
-					ctx.workspaceSlug,
-					requireProjectId(ctx, args as { project_id?: string }),
+			toolResult(async () =>
+				withWebUrl(
+					ctx,
+					"project",
+					await retrieveProject(
+						ctx.config,
+						ctx.workspaceSlug,
+						requireProjectId(ctx, args as { project_id?: string }),
+					),
 				),
 			)(),
 	);
@@ -143,12 +159,16 @@ export function registerProjectTools(
 			const a = args as { project_id?: string } & Record<string, unknown>;
 			const projectId = requireProjectId(ctx, a);
 			const { project_id: _drop, ...rest } = a;
-			return toolResult(() =>
-				updateProject(
-					ctx.config,
-					ctx.workspaceSlug,
-					projectId,
-					stripNullish(rest),
+			return toolResult(async () =>
+				withWebUrl(
+					ctx,
+					"project",
+					await updateProject(
+						ctx.config,
+						ctx.workspaceSlug,
+						projectId,
+						stripNullish(rest),
+					),
 				),
 			)();
 		},

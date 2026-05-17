@@ -21,6 +21,7 @@ import {
 	stripNullish,
 	toolResult,
 } from "./_helpers";
+import { withWebUrl } from "./_web_url";
 
 export function registerCycleTools(
 	server: McpServer,
@@ -40,8 +41,10 @@ export function registerCycleTools(
 			const a = args as { project_id?: string } & Record<string, unknown>;
 			const projectId = requireProjectId(ctx, a);
 			const { project_id: _drop, ...rest } = a;
-			return toolResult(
-				async () =>
+			return toolResult(async () =>
+				withWebUrl(
+					ctx,
+					"cycle",
 					(
 						await listCycles(
 							ctx.config,
@@ -50,6 +53,8 @@ export function registerCycleTools(
 							stripNullish(rest),
 						)
 					).results,
+					projectId,
+				),
 			)();
 		},
 	);
@@ -72,12 +77,17 @@ export function registerCycleTools(
 			const a = args as { project_id?: string } & Record<string, unknown>;
 			const projectId = requireProjectId(ctx, a);
 			const { project_id: _drop, ...rest } = a;
-			return toolResult(() =>
-				createCycle(
-					ctx.config,
-					ctx.workspaceSlug,
+			return toolResult(async () =>
+				withWebUrl(
+					ctx,
+					"cycle",
+					await createCycle(
+						ctx.config,
+						ctx.workspaceSlug,
+						projectId,
+						stripNullish({ ...rest, project_id: projectId }),
+					),
 					projectId,
-					stripNullish({ ...rest, project_id: projectId }),
 				),
 			)();
 		},
@@ -87,15 +97,22 @@ export function registerCycleTools(
 		"retrieve_cycle",
 		"Retrieve a cycle by ID.",
 		{ ...pid, cycle_id: z.string() },
-		async (args: Record<string, unknown>) =>
-			toolResult(() =>
-				retrieveCycle(
-					ctx.config,
-					ctx.workspaceSlug,
-					requireProjectId(ctx, args as { project_id?: string }),
-					args.cycle_id as string,
+		async (args: Record<string, unknown>) => {
+			const projectId = requireProjectId(ctx, args as { project_id?: string });
+			return toolResult(async () =>
+				withWebUrl(
+					ctx,
+					"cycle",
+					await retrieveCycle(
+						ctx.config,
+						ctx.workspaceSlug,
+						projectId,
+						args.cycle_id as string,
+					),
+					projectId,
 				),
-			)(),
+			)();
+		},
 	);
 
 	server.tool(
@@ -120,13 +137,18 @@ export function registerCycleTools(
 			} & Record<string, unknown>;
 			const projectId = requireProjectId(ctx, a);
 			const { project_id: _drop, cycle_id, ...rest } = a;
-			return toolResult(() =>
-				updateCycle(
-					ctx.config,
-					ctx.workspaceSlug,
+			return toolResult(async () =>
+				withWebUrl(
+					ctx,
+					"cycle",
+					await updateCycle(
+						ctx.config,
+						ctx.workspaceSlug,
+						projectId,
+						cycle_id,
+						stripNullish(rest),
+					),
 					projectId,
-					cycle_id,
-					stripNullish(rest),
 				),
 			)();
 		},
@@ -160,8 +182,10 @@ export function registerCycleTools(
 			const a = args as { project_id?: string } & Record<string, unknown>;
 			const projectId = requireProjectId(ctx, a);
 			const { project_id: _drop, ...rest } = a;
-			return toolResult(
-				async () =>
+			return toolResult(async () =>
+				withWebUrl(
+					ctx,
+					"cycle",
 					(
 						await listArchivedCycles(
 							ctx.config,
@@ -170,6 +194,8 @@ export function registerCycleTools(
 							stripNullish(rest),
 						)
 					).results,
+					projectId,
+				),
 			)();
 		},
 	);

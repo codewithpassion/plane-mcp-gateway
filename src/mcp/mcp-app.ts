@@ -4,6 +4,12 @@ import type { PlaneAppContext } from "../plane/client";
 import { loadConfig, type PlaneConfigRecord } from "../plane/storage";
 import { registerPlaneTools } from "../plane/tools";
 import type { Props } from "../utils";
+import {
+	fetchProjects,
+	fetchWorkspaceName,
+	type PlaneProjectSummary,
+	renderInstructions,
+} from "./instructions";
 
 const SLUG_HEADER = "x-plane-config-slug";
 
@@ -24,12 +30,33 @@ export class MyMCP extends McpAgent<Env, MCPState, Props> {
 	private _sealedSlug: string | undefined;
 	private _lastUpdatedAt: string | undefined;
 	private _registered: Removable[] = [];
+	private _cachedProjects: PlaneProjectSummary[] | undefined;
+	private _cachedWorkspaceName: string | undefined;
 
 	async init(): Promise<void> {
-		// Per-slug Plane tools are loaded lazily in fetch().
+		// Register a no-op stub tool BEFORE the transport connects so that
+		// the tools/list and tools/call request handlers are wired up at
+		// capability negotiation time. Without this, the first tool
+		// registration after the transport connects (during applyConfig)
+		// throws "Cannot register capabilities after connecting to
+		// transport". The stub is replaced with the real tool set on the
+		// first authenticated request via applyConfig().
+		this.server.tool(
+			"_bootstrap",
+			"Internal bootstrap tool; replaced once a Plane config is loaded.",
+			{},
+			async () => ({
+				content: [
+					{
+						type: "text",
+						text: "Plane tools not yet loaded for this session.",
+					},
+				],
+			}),
+		);
 	}
 
-	private applyConfig(record: PlaneConfigRecord): void {
+	private async applyConfig(record: PlaneConfigRecord): Promise<void> {
 		for (const t of this._registered) {
 			try {
 				t.remove?.();
@@ -39,8 +66,34 @@ export class MyMCP extends McpAgent<Env, MCPState, Props> {
 		}
 		this._registered = [];
 
-		// Wrap server.tool() so every registration is captured, without
-		// having to thread a callback through every register*Tools call.
+		// Pull projects + workspace metadata in parallel for the
+		// instructions block. Cache them on the DO so subsequent
+		// re-applies for the same config don't re-fetch.
+		const [projects, workspaceName] = await Promise.all([
+			this._cachedProjects ?? fetchProjects(record),
+			this._cachedWorkspaceName !== undefined
+				? Promise.resolve(this._cachedWorkspaceName)
+				: fetchWorkspaceName(record),
+		]);
+		this._cachedProjects = projects;
+		this._cachedWorkspaceName = workspaceName;
+
+		const instructions = renderInstructions({
+			record,
+			workspaceName,
+			projects,
+		});
+		console.log("[mcp-app] instructions:\n", instructions);
+
+		// Mutate the underlying Server's instructions so InitializeResult
+		// reflects them on the very first response. This is safe to do
+		// before the transport connects (during init) AND after — the
+		// SDK serializes them at response time.
+		(this.server.server as unknown as { instructions?: string }).instructions =
+			instructions;
+
+		// Wrap server.tool() so every registration is captured for later
+		// remove(), without threading callbacks through every register*.
 		const realTool = this.server.tool.bind(this.server);
 		const tracked: McpServer["tool"] = ((...args: unknown[]) => {
 			const result = (realTool as (...a: unknown[]) => unknown)(...args);
@@ -49,7 +102,6 @@ export class MyMCP extends McpAgent<Env, MCPState, Props> {
 			}
 			return result as ReturnType<McpServer["tool"]>;
 		}) as McpServer["tool"];
-
 		(this.server as unknown as { tool: McpServer["tool"] }).tool = tracked;
 		try {
 			const ctx: PlaneAppContext = {
@@ -92,13 +144,19 @@ export class MyMCP extends McpAgent<Env, MCPState, Props> {
 			}
 			this._registered = [];
 			this._lastUpdatedAt = undefined;
+			this._cachedProjects = undefined;
+			this._cachedWorkspaceName = undefined;
 			return new Response(`Plane config "${slug}" no longer exists`, {
 				status: 410,
 			});
 		}
 
 		if (this._lastUpdatedAt !== record.updatedAt) {
-			this.applyConfig(record);
+			// Invalidate cached metadata when the config (workspace/apiKey)
+			// may have changed.
+			this._cachedProjects = undefined;
+			this._cachedWorkspaceName = undefined;
+			await this.applyConfig(record);
 		}
 
 		return super.fetch(request);

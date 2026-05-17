@@ -20,6 +20,7 @@ import {
 	stripNullish,
 	toolResult,
 } from "./_helpers";
+import { withWebUrl } from "./_web_url";
 
 export function registerModuleTools(
 	server: McpServer,
@@ -39,8 +40,10 @@ export function registerModuleTools(
 			const a = args as { project_id?: string } & Record<string, unknown>;
 			const projectId = requireProjectId(ctx, a);
 			const { project_id: _drop, ...rest } = a;
-			return toolResult(
-				async () =>
+			return toolResult(async () =>
+				withWebUrl(
+					ctx,
+					"module",
 					(
 						await listModules(
 							ctx.config,
@@ -49,6 +52,8 @@ export function registerModuleTools(
 							stripNullish(rest),
 						)
 					).results,
+					projectId,
+				),
 			)();
 		},
 	);
@@ -72,12 +77,17 @@ export function registerModuleTools(
 			const a = args as { project_id?: string } & Record<string, unknown>;
 			const projectId = requireProjectId(ctx, a);
 			const { project_id: _drop, ...rest } = a;
-			return toolResult(() =>
-				createModule(
-					ctx.config,
-					ctx.workspaceSlug,
+			return toolResult(async () =>
+				withWebUrl(
+					ctx,
+					"module",
+					await createModule(
+						ctx.config,
+						ctx.workspaceSlug,
+						projectId,
+						stripNullish(rest),
+					),
 					projectId,
-					stripNullish(rest),
 				),
 			)();
 		},
@@ -87,15 +97,22 @@ export function registerModuleTools(
 		"retrieve_module",
 		"Retrieve a module by ID.",
 		{ ...pid, module_id: z.string() },
-		async (args: Record<string, unknown>) =>
-			toolResult(() =>
-				retrieveModule(
-					ctx.config,
-					ctx.workspaceSlug,
-					requireProjectId(ctx, args as { project_id?: string }),
-					args.module_id as string,
+		async (args: Record<string, unknown>) => {
+			const projectId = requireProjectId(ctx, args as { project_id?: string });
+			return toolResult(async () =>
+				withWebUrl(
+					ctx,
+					"module",
+					await retrieveModule(
+						ctx.config,
+						ctx.workspaceSlug,
+						projectId,
+						args.module_id as string,
+					),
+					projectId,
 				),
-			)(),
+			)();
+		},
 	);
 
 	server.tool(
@@ -121,13 +138,18 @@ export function registerModuleTools(
 			} & Record<string, unknown>;
 			const projectId = requireProjectId(ctx, a);
 			const { project_id: _drop, module_id, ...rest } = a;
-			return toolResult(() =>
-				updateModule(
-					ctx.config,
-					ctx.workspaceSlug,
+			return toolResult(async () =>
+				withWebUrl(
+					ctx,
+					"module",
+					await updateModule(
+						ctx.config,
+						ctx.workspaceSlug,
+						projectId,
+						module_id,
+						stripNullish(rest),
+					),
 					projectId,
-					module_id,
-					stripNullish(rest),
 				),
 			)();
 		},
@@ -161,8 +183,10 @@ export function registerModuleTools(
 			const a = args as { project_id?: string } & Record<string, unknown>;
 			const projectId = requireProjectId(ctx, a);
 			const { project_id: _drop, ...rest } = a;
-			return toolResult(
-				async () =>
+			return toolResult(async () =>
+				withWebUrl(
+					ctx,
+					"module",
 					(
 						await listArchivedModules(
 							ctx.config,
@@ -171,6 +195,8 @@ export function registerModuleTools(
 							stripNullish(rest),
 						)
 					).results,
+					projectId,
+				),
 			)();
 		},
 	);

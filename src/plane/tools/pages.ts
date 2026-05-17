@@ -13,6 +13,7 @@ import {
 	stripNullish,
 	toolResult,
 } from "./_helpers";
+import { withWebUrl } from "./_web_url";
 
 export function registerPageTools(
 	server: McpServer,
@@ -25,8 +26,16 @@ export function registerPageTools(
 		"Retrieve a workspace page by ID.",
 		{ page_id: z.string() },
 		async (args) =>
-			toolResult(() =>
-				retrieveWorkspacePage(ctx.config, ctx.workspaceSlug, args.page_id),
+			toolResult(async () =>
+				withWebUrl(
+					ctx,
+					"page",
+					await retrieveWorkspacePage(
+						ctx.config,
+						ctx.workspaceSlug,
+						args.page_id,
+					),
+				),
 			)(),
 	);
 
@@ -37,15 +46,22 @@ export function registerPageTools(
 			...pid,
 			page_id: z.string(),
 		},
-		async (args: Record<string, unknown>) =>
-			toolResult(() =>
-				retrieveProjectPage(
-					ctx.config,
-					ctx.workspaceSlug,
-					requireProjectId(ctx, args as { project_id?: string }),
-					args.page_id as string,
+		async (args: Record<string, unknown>) => {
+			const projectId = requireProjectId(ctx, args as { project_id?: string });
+			return toolResult(async () =>
+				withWebUrl(
+					ctx,
+					"page",
+					await retrieveProjectPage(
+						ctx.config,
+						ctx.workspaceSlug,
+						projectId,
+						args.page_id as string,
+					),
+					projectId,
 				),
-			)(),
+			)();
+		},
 	);
 
 	server.tool(
@@ -64,8 +80,16 @@ export function registerPageTools(
 			external_source: z.string().optional(),
 		},
 		async (args) =>
-			toolResult(() =>
-				createWorkspacePage(ctx.config, ctx.workspaceSlug, stripNullish(args)),
+			toolResult(async () =>
+				withWebUrl(
+					ctx,
+					"page",
+					await createWorkspacePage(
+						ctx.config,
+						ctx.workspaceSlug,
+						stripNullish(args),
+					),
+				),
 			)(),
 	);
 
@@ -89,12 +113,17 @@ export function registerPageTools(
 			const a = args as { project_id?: string } & Record<string, unknown>;
 			const projectId = requireProjectId(ctx, a);
 			const { project_id: _drop, ...rest } = a;
-			return toolResult(() =>
-				createProjectPage(
-					ctx.config,
-					ctx.workspaceSlug,
+			return toolResult(async () =>
+				withWebUrl(
+					ctx,
+					"page",
+					await createProjectPage(
+						ctx.config,
+						ctx.workspaceSlug,
+						projectId,
+						stripNullish(rest),
+					),
 					projectId,
-					stripNullish(rest),
 				),
 			)();
 		},

@@ -1,153 +1,136 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+Guidance for Claude Code when working in this repo.
 
-## Project Overview
+## What this is
 
-This is a **Model Context Protocol (MCP) server** that provides remote OAuth authentication using Clerk. It's built on Cloudflare Workers and uses the `@cloudflare/workers-oauth-provider` library to implement OAuth 2.1 compliant authentication. The server can be deployed to Cloudflare Workers and exposes MCP tools via HTTP+SSE or Streamable-HTTP protocols.
+A multi-tenant Plane MCP gateway on Cloudflare Workers. Sign-in via Clerk, per-user
+KV-stored Plane configurations, one MCP endpoint per slug:
+`https://<host>/mcp/<slug>`.
 
-### Key Responsibilities
-- Acts as an OAuth 2.1 server for MCP clients
-- Acts as an OAuth 2.1 client to Clerk's OAuth service
-- Manages MCP tool definitions and conditional access based on authenticated user roles
-- Handles authentication state, CSRF protection, and session binding for security
+## Top-level dispatch (`src/server.ts`)
 
-## Architecture
+`src/server.ts` is the Worker entry (`main` in `wrangler.jsonc`). It routes by URL:
 
-### Three-Layer Architecture
+- `/(mcp|sse)/<slug>(/...)?` — rewrite path to `/mcp` or `/sse`, set the
+  `X-Plane-Config-Slug` header, then forward to `OAuthProvider.fetch`.
+- `/authorize`, `/callback`, `/register`, `/token`, `/.well-known/*` — straight to
+  `OAuthProvider.fetch` (wrapped to HTTPS-rewrite OAuth metadata URLs and to enrich
+  401 responses with `resource_metadata` per RFC 9728).
+- `/api/*` — Hono app (`src/api/index.ts`), gated by Clerk
+  `authenticateRequest` middleware.
+- everything else — TanStack Start UI (`app/`).
 
-**1. OAuth Layer** (`src/clerk-handler.ts`, `src/workers-oauth-utils.ts`)
-- Implements OAuth 2.1 authorization flow using `@cloudflare/workers-oauth-provider`
-- Manages endpoints: `/authorize`, `/callback`, `/register`, `/token`
-- Clerk acts as the upstream OAuth provider; this server acts as the OAuth server for MCP clients
-- Token contains encrypted user context (userId, sessionId, email, firstName, lastName, role, metadata)
+## Layers
 
-**2. MCP Server Layer** (`src/index.ts`)
-- Extends `McpAgent` from the `agents` library (Durable MCP)
-- Defines tools using the MCP SDK with Zod validation
-- Tools receive user context via `this.props` (authenticated user info)
-- Supports conditional tool availability based on user role (example: `generateImage` tool restricted to `ALLOWED_ROLES`)
-- Exposes two protocol endpoints:
-  - `/sse` - deprecated Server-Sent Events protocol
-  - `/mcp` - current Streamable-HTTP protocol (recommended)
+### OAuth (Clerk as IdP)
 
-**3. Utility Layer** (`src/utils.ts`)
-- `getUpstreamAuthorizeUrl()` - constructs OAuth authorization URLs
-- `fetchUpstreamAuthToken()` - exchanges auth code for access token
-- `Props` type - defines authenticated user context (userId, sessionId, email, firstName, lastName, role, metadata)
+`src/clerk-handler.ts`, `src/workers-oauth-utils.ts` — unchanged from the original
+boilerplate. The OAuth token's `props` field carries `{ userId, sessionId, email,
+firstName, lastName, role, metadata }` (`src/utils.ts`).
 
-### Data Flow
-1. Client connects to `/mcp` or `/sse`
-2. OAuth check redirects to `/authorize`
-3. User approves access → CSRF & session binding cookies created
-4. Redirect to Clerk → Clerk redirects to `/callback`
-5. Server exchanges code for Clerk tokens (access_token + id_token)
-6. Server verifies JWT and extracts user data from claims
-7. Server creates MCP token with user props
-8. Client receives token and can invoke tools
-9. Tools execute with user context available via `this.props`
+### Storage
 
-## Security Implementation
+`src/plane/storage.ts` — `PlaneConfigRecord` lives in `OAUTH_KV` under
+`plane:cfg:<userId>:<slug>`. `validateSlug()` enforces a regex + a reserved-word
+list (`well-known`, `mcp`, `sse`, `api`, `app`, …). `redactApiKey()` returns
+`••••<last4>` for API responses.
 
-### OAuth State Management (`src/workers-oauth-utils.ts`)
-- **KV Storage**: OAuth state tokens stored in Cloudflare KV with 600s TTL
-- **Session Binding**: State token hashed and bound to browser session via `__Host-CONSENTED_STATE` cookie
-- **CSRF Protection**: Per-form CSRF tokens stored in `__Host-CSRF_TOKEN` cookie with 10-minute TTL, validated on form submission
-- **One-time Use**: State and CSRF tokens deleted/invalidated after use (RFC 9700 compliance)
-- **URL Validation**: Input URLs validated for XSS attacks using allowlist (http/https only) + HTML escaping
+### JSON API (`src/api/index.ts`)
 
-### Access Control
-- Basic tools (`add`, `userInfo`) available to all authenticated users
-- Restricted tools (e.g., `generateImage`) controlled via role-based access control
-- User role from Clerk available in `this.props.role` for conditional logic
-- Roles configured in `ALLOWED_ROLES` set in `src/index.ts`
-- User roles set in Clerk Dashboard via `public_metadata.role` field
+Hono mounted at `/api`. Clerk session middleware. Endpoints:
+- `GET/POST /configs`
+- `GET/PATCH/DELETE /configs/:slug`
+- `POST /configs/:slug/test` → `GET workspaces/<workspaceSlug>` against Plane
+- `GET /configs/:slug/projects` → project picker source
+- `POST /configs/projects-preview` → same as above, but takes raw credentials so the
+  create form can list projects before the config is saved.
 
-### Secrets Management
-Wrangler secrets (do not commit):
-- `CLERK_CLIENT_ID` - Clerk OAuth application client ID
-- `CLERK_CLIENT_SECRET` - Clerk OAuth application client secret
-- `CLERK_SECRET_KEY` - Clerk secret key for JWT verification (starts with `sk_`)
-- `CLERK_FRONTEND_API` - Clerk frontend API URL (e.g., `https://your-subdomain.clerk.accounts.dev`)
-- `COOKIE_ENCRYPTION_KEY` - Random string for signing cookies (generate: `openssl rand -hex 32`)
+`apiKey` is always redacted on read; zod validation on writes.
 
-## Development
+### MCP (`src/mcp/mcp-app.ts`)
 
-### Setup
-1. Install dependencies: `npm install`
-2. Create Clerk application at https://dashboard.clerk.com
-3. Create OAuth application in Clerk Dashboard (redirect URI: `http://localhost:8788/callback`)
-4. Copy `.env.example` to `.dev.vars` and fill in Clerk credentials
-5. Generate `COOKIE_ENCRYPTION_KEY`: `openssl rand -hex 32`
-6. Set user roles in Clerk Dashboard: Users → [select user] → Metadata → Public → `{"role": "admin"}`
+`MyMCP` extends `McpAgent`.
 
-### Common Commands
-- `npm run dev` (or `npm start`) - Run locally on `http://localhost:8788`
-- `npm run type-check` - Check TypeScript types without emitting
-- `npm run cf-typegen` - Generate Cloudflare Worker types
-- `npm run deploy` - Deploy to Cloudflare Workers
+- `init()` registers a `_bootstrap` stub tool BEFORE the transport connects. This is
+  required so the SDK wires up `tools/list` / `tools/call` capability handlers at
+  initialize time; once the transport is connected you can only add/remove tools
+  (and have `list_changed` fire automatically), not register the capability for the
+  first time. Without the stub you get
+  `Error: Cannot register capabilities after connecting to transport`.
+- `fetch()` reads the slug from `X-Plane-Config-Slug` and seals the DO to that slug
+  on first request (mismatch → 400). It then loads the config from KV. Missing
+  config (post-auth) → HTTP 410.
+- On every request, the config's `updatedAt` is compared against the last applied
+  version. On change, `applyConfig()` removes all previously registered tools,
+  fetches workspace + project list, recomputes the `instructions` text (workspace
+  name, workspace URL, project table, URL patterns), mutates
+  `server.server.instructions`, logs the full instructions, and re-runs
+  `registerPlaneTools`. `notifications/tools/list_changed` fires automatically as a
+  side effect of `.remove()` + new `.tool()` calls.
+- KV is eventually consistent (~60s cross-colo), so propagation is bounded by that.
 
-### Testing
-Test locally with MCP Inspector:
+### Plane client + tools (`src/plane/`)
+
+- `client.ts` — `planeFetch(config, method, path, {params?, body?})` with
+  retry/backoff (3 retries, exponential backoff on 429/5xx for idempotent methods).
+- `resources/*.ts` — one async function per Plane endpoint.
+- `tools/*.ts` — `register*Tools(server, ctx)` per resource. Tool names and
+  parameter names match the Python `plane-mcp-server` VERBATIM (snake_case).
+- `tools/_helpers.ts` — `toolResult(fn)` (errors → `isError`), `stripNullish(obj)`
+  (mirrors pydantic `exclude_none`), `projectIdField(ctx)` and
+  `requireProjectId(ctx, args)` for project pinning.
+- `tools/_web_url.ts` — `withWebUrl(ctx, kind, value, defaultProjectId?)` attaches
+  a `web_url` field to project/work-item/cycle/module/page results.
+- `tools/index.ts` — `registerPlaneTools(server, ctx)` calls every
+  `register*Tools`.
+
+### UI (`app/`)
+
+TanStack Start (file-based routes) + shadcn/ui + Tailwind v4. Clerk via
+`@clerk/clerk-react`. Routes:
+- `__root.tsx` — `ClerkProvider` + `Toaster`
+- `index.tsx` — redirect by auth state
+- `sign-in.tsx` — Clerk `<SignIn/>`
+- `app/route.tsx` — auth gate + `<UserButton/>`
+- `app/configs/{index,new,$slug}.tsx` — list / create / edit + delete + test
+
+`vite.config.ts` pins port 8788 and disables remote bindings. The Worker's
+fallback handler dynamically imports `app/server-entry` when present.
+
+## Project pinning
+
+Set `projectId` on a `PlaneConfigRecord` to pin the config to a single project.
+`projectIdField(ctx)` then returns `{}`, so the `project_id` parameter disappears
+from every project-scoped tool's schema. `requireProjectId(ctx, args)` resolves
+the id at call time (pinned wins). `list_projects`, `create_project`, and
+`delete_project` are NOT registered when pinned.
+
+## Gotchas
+
+- **Slug-sealed DO**: a Durable Object handles one slug for its lifetime. Mixing
+  slugs on the same session returns 400.
+- **`/work-items/` not `/issues/`**: the Plane Python SDK uses the hyphenated form.
+  Trust the SDK paths over the Plane API docs.
+- **planeFetch path rules**: NO leading `/api/v1/`, NO trailing slash. The client
+  adds both. E.g. `workspaces/${ws}/projects/${pid}/work-items/${id}`.
+- **POST/PATCH bodies** must pass through `stripNullish()` first — Plane rejects
+  null/undefined for many optional fields.
+- **KV staleness**: tool list refresh latency is bounded by KV's eventual
+  consistency (~60s cross-colo).
+- **SSE vs Streamable-HTTP**: `/sse/<slug>` is deprecated; new clients should use
+  `/mcp/<slug>`.
+
+## Common commands
+
 ```bash
-npm run dev
-# In another terminal:
-npx @modelcontextprotocol/inspector@latest
-# Enter: http://localhost:8788/sse (deprecated) or http://localhost:8788/mcp
+bun install
+bun run dev           # localhost:8788
+bun run type-check    # root + app
+bun run lint
+bun run deploy
 ```
 
-Then use the Inspector to authenticate via Clerk and test tools.
-
-### Adding New Tools
-1. In `src/index.ts`, add new tools in the `init()` method using `this.server.tool()`
-2. Use `this.props` to access authenticated user info: `userId`, `sessionId`, `email`, `firstName`, `lastName`, `role`, `metadata`
-3. Use Zod for input validation
-4. Optionally gate access by role: `if (this.props!.role && ALLOWED_ROLES.has(this.props!.role)) { ... }`
-
-### Production Deployment
-1. Create Clerk OAuth application with production redirect URI: `https://mcp-clerk-oauth.<your-subdomain>.workers.dev/callback`
-2. Set secrets: `wrangler secret put CLERK_CLIENT_ID`, `CLERK_CLIENT_SECRET`, `CLERK_SECRET_KEY`, `CLERK_FRONTEND_API`, `COOKIE_ENCRYPTION_KEY`
-3. Create KV namespace: `wrangler kv namespace create "OAUTH_KV"` and update `wrangler.jsonc` with ID
-4. Deploy: `npm run deploy`
-5. Review [Securing MCP Servers](https://github.com/cloudflare/agents/blob/main/docs/securing-mcp-servers.md)
-
-## Key Dependencies
-
-- **@clerk/backend** - Clerk backend SDK for JWT verification
-- **@cloudflare/workers-oauth-provider** - OAuth 2.1 server implementation
-- **@modelcontextprotocol/sdk** - MCP SDK for defining tools
-- **agents** - Durable MCP (McpAgent class for Durable Object integration)
-- **hono** - Lightweight web framework for routing
-- **zod** - Schema validation for tool inputs
-
-## Configuration
-
-### wrangler.jsonc
-- `compatibility_date: "2025-03-10"` - Cloudflare runtime version
-- `compatibility_flags: ["nodejs_compat"]` - Enable Node.js compatibility
-- `MCP_OBJECT` Durable Object binding - stores MCP server state
-- `OAUTH_KV` KV namespace - stores OAuth state tokens
-- `AI` binding - access to Cloudflare AI models (for generateImage tool)
-- Dev port: 8788
-
-### Environment Types
-See `worker-configuration.d.ts` for Worker environment type definitions (auto-generated by `npm run cf-typegen`).
-
-## Important Security Notes
-
-This is a **demo template**. Before production:
-- Implement rate limiting (auth attempts, tool invocations)
-- Add logging and monitoring
-- Review Cloudflare's [Securing MCP Servers guide](https://github.com/cloudflare/agents/blob/main/docs/securing-mcp-servers.md)
-- Validate all user inputs in tools
-- Consider token rotation strategies for long-lived MCP sessions
-- Test OAuth attack vectors (CSRF, code reuse, state mismatches)
-
-## Common Gotchas
-
-1. **SSE vs Streamable-HTTP**: SSE (`/sse`) is deprecated; use `/mcp` for new clients
-2. **KV Namespace ID**: Must be set in `wrangler.jsonc` before deployment (placeholder: `<Add-KV-ID>`)
-3. **User Roles**: Set via Clerk Dashboard → Users → Metadata → Public → `{"role": "admin"}`
-4. **ALLOWED_ROLES**: Default roles are `"admin"` and `"premium"` - customize in `src/index.ts`
-5. **Clerk Frontend API**: Must include full URL with protocol (e.g., `https://your-subdomain.clerk.accounts.dev`)
-6. **Durable Object Migrations**: New class names require migration tags in `wrangler.jsonc`
+Secrets to set in production: `CLERK_CLIENT_ID`, `CLERK_CLIENT_SECRET`,
+`CLERK_SECRET_KEY`, `CLERK_PUBLISHABLE_KEY`, `CLERK_FRONTEND_API`,
+`COOKIE_ENCRYPTION_KEY`.

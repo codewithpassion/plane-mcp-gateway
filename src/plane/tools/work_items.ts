@@ -17,6 +17,7 @@ import {
 	stripNullish,
 	toolResult,
 } from "./_helpers";
+import { withWebUrl } from "./_web_url";
 
 type Condition = Record<string, unknown>;
 
@@ -121,10 +122,15 @@ export function registerWorkItemTools(
 						project_id: resolvedPid,
 						workspace_search: a.workspace_search ? true : undefined,
 					});
-					return advancedSearchWorkItems(
-						ctx.config,
-						ctx.workspaceSlug,
-						body as Record<string, unknown>,
+					return withWebUrl(
+						ctx,
+						"work_item",
+						await advancedSearchWorkItems(
+							ctx.config,
+							ctx.workspaceSlug,
+							body as Record<string, unknown>,
+						),
+						resolvedPid,
 					);
 				}
 				if (!resolvedPid) {
@@ -147,7 +153,7 @@ export function registerWorkItemTools(
 					resolvedPid,
 					params,
 				);
-				return res.results;
+				return withWebUrl(ctx, "work_item", res.results, resolvedPid);
 			})(),
 	);
 
@@ -179,12 +185,17 @@ export function registerWorkItemTools(
 			const a = args as { project_id?: string } & Record<string, unknown>;
 			const projectId = requireProjectId(ctx, a);
 			const { project_id: _drop, ...rest } = a;
-			return toolResult(() =>
-				createWorkItem(
-					ctx.config,
-					ctx.workspaceSlug,
+			return toolResult(async () =>
+				withWebUrl(
+					ctx,
+					"work_item",
+					await createWorkItem(
+						ctx.config,
+						ctx.workspaceSlug,
+						projectId,
+						stripNullish(rest),
+					),
 					projectId,
-					stripNullish(rest),
 				),
 			)();
 		},
@@ -209,13 +220,18 @@ export function registerWorkItemTools(
 			} & Record<string, unknown>;
 			const projectId = requireProjectId(ctx, a);
 			const { project_id: _drop, work_item_id, ...rest } = a;
-			return toolResult(() =>
-				retrieveWorkItem(
-					ctx.config,
-					ctx.workspaceSlug,
+			return toolResult(async () =>
+				withWebUrl(
+					ctx,
+					"work_item",
+					await retrieveWorkItem(
+						ctx.config,
+						ctx.workspaceSlug,
+						projectId,
+						work_item_id,
+						stripNullish(rest),
+					),
 					projectId,
-					work_item_id,
-					stripNullish(rest),
 				),
 			)();
 		},
@@ -235,13 +251,17 @@ export function registerWorkItemTools(
 		},
 		async (args) => {
 			const { project_identifier, issue_identifier, ...rest } = args;
-			return toolResult(() =>
-				retrieveWorkItemByIdentifier(
-					ctx.config,
-					ctx.workspaceSlug,
-					project_identifier,
-					issue_identifier,
-					stripNullish(rest),
+			return toolResult(async () =>
+				withWebUrl(
+					ctx,
+					"work_item",
+					await retrieveWorkItemByIdentifier(
+						ctx.config,
+						ctx.workspaceSlug,
+						project_identifier,
+						issue_identifier,
+						stripNullish(rest),
+					),
 				),
 			)();
 		},
@@ -279,13 +299,18 @@ export function registerWorkItemTools(
 			} & Record<string, unknown>;
 			const projectId = requireProjectId(ctx, a);
 			const { project_id: _drop, work_item_id, ...rest } = a;
-			return toolResult(() =>
-				updateWorkItem(
-					ctx.config,
-					ctx.workspaceSlug,
+			return toolResult(async () =>
+				withWebUrl(
+					ctx,
+					"work_item",
+					await updateWorkItem(
+						ctx.config,
+						ctx.workspaceSlug,
+						projectId,
+						work_item_id,
+						stripNullish(rest),
+					),
 					projectId,
-					work_item_id,
-					stripNullish(rest),
 				),
 			)();
 		},
@@ -327,8 +352,12 @@ export function registerWorkItemTools(
 				external_source: args.external_source,
 				order_by: args.order_by,
 			});
-			return toolResult(() =>
-				searchWorkItems(ctx.config, ctx.workspaceSlug, params),
+			return toolResult(async () =>
+				withWebUrl(
+					ctx,
+					"work_item",
+					await searchWorkItems(ctx.config, ctx.workspaceSlug, params),
+				),
 			)();
 		},
 	);
