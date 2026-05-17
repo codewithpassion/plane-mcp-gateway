@@ -14,6 +14,7 @@ import {
 	resolveProjectId,
 	stripNullish,
 	toolResult,
+	toolResultWithUrl,
 } from "./_helpers";
 
 function _buildAdvancedSearchFilters(args: {
@@ -165,7 +166,7 @@ export function registerWorkItemTools(
 				.describe("External system source name for filtering (list only)"),
 		},
 		async (params) =>
-			toolResult(async () => {
+			toolResultWithUrl("work_item", ctx, async () => {
 				const projectId = resolveProjectId(ctx, params);
 				const filters = _buildAdvancedSearchFilters({
 					assignee_ids: params.assignee_ids,
@@ -269,7 +270,7 @@ export function registerWorkItemTools(
 			type: z.string().optional().describe("Work item type identifier"),
 		},
 		async (params) =>
-			toolResult(() => {
+			toolResultWithUrl("work_item", ctx, () => {
 				const data: CreateWorkItemBody = stripNullish({
 					name: params.name,
 					assignees: params.assignees,
@@ -331,7 +332,7 @@ export function registerWorkItemTools(
 				),
 		},
 		async (params) =>
-			toolResult(() =>
+			toolResultWithUrl("work_item", ctx, () =>
 				workItems.retrieve(
 					ctx.config,
 					ctx.workspaceSlug,
@@ -385,7 +386,7 @@ export function registerWorkItemTools(
 				),
 		},
 		async (params) =>
-			toolResult(() =>
+			toolResultWithUrl("work_item", ctx, () =>
 				workItems.retrieveByIdentifier(
 					ctx.config,
 					ctx.workspaceSlug,
@@ -539,7 +540,7 @@ export function registerWorkItemTools(
 				),
 		},
 		async (params) =>
-			toolResult(() =>
+			toolResultWithUrl("work_item", ctx, () =>
 				workItems.search(
 					ctx.config,
 					ctx.workspaceSlug,

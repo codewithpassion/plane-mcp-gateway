@@ -11,6 +11,8 @@ export interface PlaneAppContext {
 	config: PlaneConfig;
 	workspaceSlug: string;
 	projectId?: string;
+	/** Plane web app base URL (no trailing slash) — used to build `web_url` fields in tool results. */
+	appBaseUrl: string;
 }
 
 export interface PlaneRequestOptions {

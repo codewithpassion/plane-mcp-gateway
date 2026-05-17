@@ -3,7 +3,12 @@ import { z } from "zod";
 import type { PlaneAppContext } from "../client";
 import { cycles } from "../resources/cycles";
 import type { CreateCycleBody, UpdateCycleBody } from "../types/cycles";
-import { projectIdField, requireProjectId, toolResult } from "./_helpers";
+import {
+	projectIdField,
+	requireProjectId,
+	toolResult,
+	toolResultWithUrl,
+} from "./_helpers";
 
 export function registerCycleTools(
 	server: McpServer,
@@ -20,7 +25,7 @@ export function registerCycleTools(
 				.describe("Optional query parameters as a dictionary"),
 		},
 		async (params) =>
-			toolResult(async () => {
+			toolResultWithUrl("cycle", ctx, async () => {
 				const response = await cycles.list(
 					ctx.config,
 					ctx.workspaceSlug,
@@ -55,7 +60,7 @@ export function registerCycleTools(
 			timezone: z.string().optional().describe("Cycle timezone"),
 		},
 		async (params) =>
-			toolResult(() => {
+			toolResultWithUrl("cycle", ctx, () => {
 				const data: CreateCycleBody = {
 					name: params.name,
 					owned_by: params.owned_by,
@@ -84,7 +89,7 @@ export function registerCycleTools(
 			cycle_id: z.string().describe("UUID of the cycle"),
 		},
 		async (params) =>
-			toolResult(() =>
+			toolResultWithUrl("cycle", ctx, () =>
 				cycles.retrieve(
 					ctx.config,
 					ctx.workspaceSlug,
@@ -172,7 +177,7 @@ export function registerCycleTools(
 				.describe("Optional query parameters as a dictionary"),
 		},
 		async (params) =>
-			toolResult(async () => {
+			toolResultWithUrl("cycle", ctx, async () => {
 				const response = await cycles.listArchived(
 					ctx.config,
 					ctx.workspaceSlug,
@@ -237,7 +242,7 @@ export function registerCycleTools(
 				.describe("Optional query parameters as a dictionary"),
 		},
 		async (params) =>
-			toolResult(async () => {
+			toolResultWithUrl("work_item", ctx, async () => {
 				const response = await cycles.listWorkItems(
 					ctx.config,
 					ctx.workspaceSlug,

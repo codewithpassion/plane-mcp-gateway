@@ -4,7 +4,12 @@ import type { PlaneAppContext } from "../client";
 import { modules } from "../resources/modules";
 import type { ModuleStatusEnum } from "../types/common";
 import type { CreateModuleBody, UpdateModuleBody } from "../types/modules";
-import { projectIdField, requireProjectId, toolResult } from "./_helpers";
+import {
+	projectIdField,
+	requireProjectId,
+	toolResult,
+	toolResultWithUrl,
+} from "./_helpers";
 
 const MODULE_STATUS_VALUES: ReadonlySet<ModuleStatusEnum> = new Set([
 	"backlog",
@@ -37,7 +42,7 @@ export function registerModuleTools(
 				.describe("Optional query parameters as a dictionary"),
 		},
 		async (params) =>
-			toolResult(async () => {
+			toolResultWithUrl("module", ctx, async () => {
 				const response = await modules.list(
 					ctx.config,
 					ctx.workspaceSlug,
@@ -84,7 +89,7 @@ export function registerModuleTools(
 			external_id: z.string().optional().describe("External system identifier"),
 		},
 		async (params) =>
-			toolResult(() => {
+			toolResultWithUrl("module", ctx, () => {
 				const data: CreateModuleBody = {
 					name: params.name,
 					description: params.description,
@@ -113,7 +118,7 @@ export function registerModuleTools(
 			module_id: z.string().describe("UUID of the module"),
 		},
 		async (params) =>
-			toolResult(() =>
+			toolResultWithUrl("module", ctx, () =>
 				modules.retrieve(
 					ctx.config,
 					ctx.workspaceSlug,
@@ -211,7 +216,7 @@ export function registerModuleTools(
 				.describe("Optional query parameters as a dictionary"),
 		},
 		async (params) =>
-			toolResult(async () => {
+			toolResultWithUrl("module", ctx, async () => {
 				const response = await modules.listArchived(
 					ctx.config,
 					ctx.workspaceSlug,
@@ -276,7 +281,7 @@ export function registerModuleTools(
 				.describe("Optional query parameters as a dictionary"),
 		},
 		async (params) =>
-			toolResult(async () => {
+			toolResultWithUrl("work_item", ctx, async () => {
 				const response = await modules.listWorkItems(
 					ctx.config,
 					ctx.workspaceSlug,

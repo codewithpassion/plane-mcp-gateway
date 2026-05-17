@@ -3,7 +3,11 @@ import { z } from "zod";
 import type { PlaneAppContext } from "../client";
 import { pages } from "../resources/pages";
 import type { CreatePageBody } from "../types/pages";
-import { projectIdField, requireProjectId, toolResult } from "./_helpers";
+import {
+	projectIdField,
+	requireProjectId,
+	toolResultWithUrl,
+} from "./_helpers";
 
 export function registerPageTools(
 	server: McpServer,
@@ -16,7 +20,7 @@ export function registerPageTools(
 			page_id: z.string().describe("UUID of the page"),
 		},
 		async ({ page_id }) =>
-			toolResult(() =>
+			toolResultWithUrl("workspace_page", ctx, () =>
 				pages.retrieveWorkspacePage(ctx.config, ctx.workspaceSlug, page_id),
 			),
 	);
@@ -29,13 +33,17 @@ export function registerPageTools(
 			page_id: z.string().describe("UUID of the page"),
 		},
 		async (input) =>
-			toolResult(() =>
-				pages.retrieveProjectPage(
-					ctx.config,
-					ctx.workspaceSlug,
-					requireProjectId(ctx, input),
-					input.page_id,
-				),
+			toolResultWithUrl(
+				"page",
+				ctx,
+				() =>
+					pages.retrieveProjectPage(
+						ctx.config,
+						ctx.workspaceSlug,
+						requireProjectId(ctx, input),
+						input.page_id,
+					),
+				{ projectId: requireProjectId(ctx, input) },
 			),
 	);
 
@@ -71,7 +79,7 @@ export function registerPageTools(
 				.describe("External system source name"),
 		},
 		async (params) =>
-			toolResult(() =>
+			toolResultWithUrl("workspace_page", ctx, () =>
 				pages.createWorkspacePage(
 					ctx.config,
 					ctx.workspaceSlug,
@@ -113,14 +121,22 @@ export function registerPageTools(
 				.describe("External system source name"),
 		},
 		async (input) =>
-			toolResult(() => {
-				const { project_id: _pid, ...rest } = input as Record<string, unknown>;
-				return pages.createProjectPage(
-					ctx.config,
-					ctx.workspaceSlug,
-					requireProjectId(ctx, input),
-					rest as unknown as CreatePageBody,
-				);
-			}),
+			toolResultWithUrl(
+				"page",
+				ctx,
+				() => {
+					const { project_id: _pid, ...rest } = input as Record<
+						string,
+						unknown
+					>;
+					return pages.createProjectPage(
+						ctx.config,
+						ctx.workspaceSlug,
+						requireProjectId(ctx, input),
+						rest as unknown as CreatePageBody,
+					);
+				},
+				{ projectId: requireProjectId(ctx, input) },
+			),
 	);
 }

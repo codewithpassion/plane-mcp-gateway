@@ -1,6 +1,7 @@
 import { z } from "zod";
 import type { PlaneAppContext } from "../client";
 import { PlaneError } from "../errors";
+import { type EnrichOptions, type EntityKind, enrichWithUrl } from "../url";
 
 /**
  * Build the zod shape fragment for a project_id parameter.
@@ -42,6 +43,21 @@ export interface ToolTextResult {
 	content: { type: "text"; text: string }[];
 	isError?: boolean;
 	[key: string]: unknown;
+}
+
+/**
+ * Same as `toolResult` but post-processes the result through `enrichWithUrl`
+ * to inject a `web_url` field on the returned entity / array / paginated
+ * response. Use this on create/list/get tools whose return shape carries the
+ * given entity `kind`.
+ */
+export async function toolResultWithUrl<T>(
+	kind: EntityKind,
+	ctx: PlaneAppContext,
+	fn: () => Promise<T>,
+	opts?: EnrichOptions,
+): Promise<ToolTextResult> {
+	return toolResult(async () => enrichWithUrl(kind, ctx, await fn(), opts));
 }
 
 export async function toolResult<T>(

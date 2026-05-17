@@ -2,7 +2,7 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import type { PlaneAppContext } from "../client";
 import { initiatives } from "../resources/initiatives";
-import { toolResult } from "./_helpers";
+import { toolResult, toolResultWithUrl } from "./_helpers";
 
 export function registerInitiativeTools(
 	server: McpServer,
@@ -20,7 +20,7 @@ export function registerInitiativeTools(
 				),
 		},
 		async ({ params }) =>
-			toolResult(async () => {
+			toolResultWithUrl("initiative", ctx, async () => {
 				const response = await initiatives.list(
 					ctx.config,
 					ctx.workspaceSlug,
@@ -71,7 +71,7 @@ export function registerInitiativeTools(
 			state,
 			lead,
 		}) =>
-			toolResult(() =>
+			toolResultWithUrl("initiative", ctx, () =>
 				initiatives.create(ctx.config, ctx.workspaceSlug, {
 					name,
 					description_html,
@@ -91,7 +91,7 @@ export function registerInitiativeTools(
 			initiative_id: z.string().describe("UUID of the initiative"),
 		},
 		async ({ initiative_id }) =>
-			toolResult(() =>
+			toolResultWithUrl("initiative", ctx, () =>
 				initiatives.retrieve(ctx.config, ctx.workspaceSlug, initiative_id),
 			),
 	);

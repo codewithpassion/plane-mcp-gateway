@@ -8,7 +8,12 @@ import type {
 	ProjectFeature,
 	UpdateProjectBody,
 } from "../types/projects";
-import { projectIdField, requireProjectId, toolResult } from "./_helpers";
+import {
+	projectIdField,
+	requireProjectId,
+	toolResult,
+	toolResultWithUrl,
+} from "./_helpers";
 
 export function registerProjectTools(
 	server: McpServer,
@@ -48,7 +53,7 @@ export function registerProjectTools(
 					),
 			},
 			async (params) =>
-				toolResult(async () => {
+				toolResultWithUrl("project", ctx, async () => {
 					const queryParams: PaginatedQueryParams = {
 						cursor: params.cursor,
 						per_page: params.per_page,
@@ -120,7 +125,7 @@ export function registerProjectTools(
 					.describe("Enable issue types"),
 			},
 			async (params) =>
-				toolResult(() => {
+				toolResultWithUrl("project", ctx, () => {
 					const data: CreateProjectBody = {
 						name: params.name,
 						identifier: params.identifier,
@@ -166,7 +171,7 @@ export function registerProjectTools(
 		pinned ? "Retrieve the configured project." : "Retrieve a project by ID.",
 		{ ...projectIdField(ctx) },
 		async (params) =>
-			toolResult(() =>
+			toolResultWithUrl("project", ctx, () =>
 				projects.retrieve(
 					ctx.config,
 					ctx.workspaceSlug,

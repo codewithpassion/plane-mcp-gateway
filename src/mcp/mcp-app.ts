@@ -8,6 +8,7 @@ import { ClerkHandler } from "../clerk-handler";
 import { projects as projectsResource } from "../plane/resources/projects";
 import { loadConfig, type PlaneConfigRecord } from "../plane/storage";
 import { registerPlaneTools } from "../plane/tools";
+import { deriveAppBaseUrl } from "../plane/url";
 import type { Props } from "../utils";
 
 /**
@@ -97,6 +98,7 @@ export class MyMCP extends McpAgent<Env, Record<string, never>, Props> {
 					},
 					workspaceSlug: cfg.planeWorkspaceSlug,
 					projectId: cfg.projectId,
+					appBaseUrl: deriveAppBaseUrl(cfg.baseUrl),
 				});
 				this.planeCfgVersion = cfg.updatedAt;
 			}
@@ -153,22 +155,6 @@ export class MyMCP extends McpAgent<Env, Record<string, never>, Props> {
 }
 
 const INSTRUCTIONS_PROJECT_CAP = 50;
-
-/**
- * Derive the Plane web app base URL (no trailing slash) from the API base URL.
- * - Cloud: `https://api.plane.so` → `https://app.plane.so`.
- * - Self-hosted: same host as the API (Plane serves UI + `/api/v1` from one host).
- */
-function deriveAppBaseUrl(apiBaseUrl: string | undefined): string {
-	const raw = apiBaseUrl ?? "https://api.plane.so";
-	try {
-		const u = new URL(raw);
-		if (u.hostname === "api.plane.so") u.hostname = "app.plane.so";
-		return `${u.protocol}//${u.host}`;
-	} catch {
-		return "https://app.plane.so";
-	}
-}
 
 function workspaceUrl(cfg: PlaneConfigRecord): string {
 	return `${deriveAppBaseUrl(cfg.baseUrl)}/${cfg.planeWorkspaceSlug}`;

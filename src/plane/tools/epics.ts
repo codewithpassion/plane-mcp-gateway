@@ -5,7 +5,12 @@ import { epics } from "../resources/epics";
 import { workItemTypes } from "../resources/work_item_types";
 import type { PriorityEnum } from "../types/common";
 import type { WorkItemType } from "../types/work_item_types";
-import { projectIdField, requireProjectId, toolResult } from "./_helpers";
+import {
+	projectIdField,
+	requireProjectId,
+	toolResult,
+	toolResultWithUrl,
+} from "./_helpers";
 
 const PRIORITIES: readonly PriorityEnum[] = [
 	"urgent",
@@ -68,7 +73,7 @@ export function registerEpicTools(
 				.describe("Number of results per page (1-100)"),
 		},
 		async (input) =>
-			toolResult(async () => {
+			toolResultWithUrl("epic", ctx, async () => {
 				const response = await epics.list(
 					ctx.config,
 					ctx.workspaceSlug,
@@ -126,7 +131,7 @@ export function registerEpicTools(
 			estimate_point: z.string().optional().describe("Estimate point value"),
 		},
 		async (input) =>
-			toolResult(async () => {
+			toolResultWithUrl("epic", ctx, async () => {
 				const projectId = requireProjectId(ctx, input);
 				const epicType = await getEpicWorkItemType(
 					ctx.config,
@@ -261,7 +266,7 @@ export function registerEpicTools(
 			epic_id: z.string().describe("UUID of the epic"),
 		},
 		async (input) =>
-			toolResult(() =>
+			toolResultWithUrl("epic", ctx, () =>
 				epics.retrieve(
 					ctx.config,
 					ctx.workspaceSlug,
