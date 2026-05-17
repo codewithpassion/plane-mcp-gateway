@@ -3,7 +3,7 @@ import { z } from "zod";
 import type { PlaneAppContext } from "../client";
 import { cycles } from "../resources/cycles";
 import type { CreateCycleBody, UpdateCycleBody } from "../types/cycles";
-import { toolResult } from "./_helpers";
+import { projectIdField, requireProjectId, toolResult } from "./_helpers";
 
 export function registerCycleTools(
 	server: McpServer,
@@ -13,7 +13,7 @@ export function registerCycleTools(
 		"list_cycles",
 		"List all cycles in a project.",
 		{
-			project_id: z.string().describe("UUID of the project"),
+			...projectIdField(ctx),
 			params: z
 				.record(z.unknown())
 				.optional()
@@ -24,7 +24,7 @@ export function registerCycleTools(
 				const response = await cycles.list(
 					ctx.config,
 					ctx.workspaceSlug,
-					params.project_id,
+					requireProjectId(ctx, params),
 					params.params ?? null,
 				);
 				return response.results;
@@ -35,7 +35,7 @@ export function registerCycleTools(
 		"create_cycle",
 		"Create a new cycle.",
 		{
-			project_id: z.string().describe("UUID of the project"),
+			...projectIdField(ctx),
 			name: z.string().describe("Cycle name"),
 			owned_by: z.string().describe("UUID of the user who owns the cycle"),
 			description: z.string().optional().describe("Cycle description"),
@@ -59,7 +59,7 @@ export function registerCycleTools(
 				const data: CreateCycleBody = {
 					name: params.name,
 					owned_by: params.owned_by,
-					project_id: params.project_id,
+					project_id: requireProjectId(ctx, params),
 					description: params.description,
 					start_date: params.start_date,
 					end_date: params.end_date,
@@ -70,7 +70,7 @@ export function registerCycleTools(
 				return cycles.create(
 					ctx.config,
 					ctx.workspaceSlug,
-					params.project_id,
+					requireProjectId(ctx, params),
 					data,
 				);
 			}),
@@ -80,7 +80,7 @@ export function registerCycleTools(
 		"retrieve_cycle",
 		"Retrieve a cycle by ID.",
 		{
-			project_id: z.string().describe("UUID of the project"),
+			...projectIdField(ctx),
 			cycle_id: z.string().describe("UUID of the cycle"),
 		},
 		async (params) =>
@@ -88,7 +88,7 @@ export function registerCycleTools(
 				cycles.retrieve(
 					ctx.config,
 					ctx.workspaceSlug,
-					params.project_id,
+					requireProjectId(ctx, params),
 					params.cycle_id,
 				),
 			),
@@ -98,7 +98,7 @@ export function registerCycleTools(
 		"update_cycle",
 		"Update a cycle by ID.",
 		{
-			project_id: z.string().describe("UUID of the project"),
+			...projectIdField(ctx),
 			cycle_id: z.string().describe("UUID of the cycle"),
 			name: z.string().optional().describe("Cycle name"),
 			description: z.string().optional().describe("Cycle description"),
@@ -136,7 +136,7 @@ export function registerCycleTools(
 				return cycles.update(
 					ctx.config,
 					ctx.workspaceSlug,
-					params.project_id,
+					requireProjectId(ctx, params),
 					params.cycle_id,
 					data,
 				);
@@ -147,7 +147,7 @@ export function registerCycleTools(
 		"delete_cycle",
 		"Delete a cycle by ID.",
 		{
-			project_id: z.string().describe("UUID of the project"),
+			...projectIdField(ctx),
 			cycle_id: z.string().describe("UUID of the cycle"),
 		},
 		async (params) =>
@@ -155,7 +155,7 @@ export function registerCycleTools(
 				cycles.delete(
 					ctx.config,
 					ctx.workspaceSlug,
-					params.project_id,
+					requireProjectId(ctx, params),
 					params.cycle_id,
 				),
 			),
@@ -165,7 +165,7 @@ export function registerCycleTools(
 		"list_archived_cycles",
 		"List archived cycles in a project.",
 		{
-			project_id: z.string().describe("UUID of the project"),
+			...projectIdField(ctx),
 			params: z
 				.record(z.unknown())
 				.optional()
@@ -176,7 +176,7 @@ export function registerCycleTools(
 				const response = await cycles.listArchived(
 					ctx.config,
 					ctx.workspaceSlug,
-					params.project_id,
+					requireProjectId(ctx, params),
 					params.params ?? null,
 				);
 				return response.results;
@@ -187,7 +187,7 @@ export function registerCycleTools(
 		"add_work_items_to_cycle",
 		"Add work items to a cycle.",
 		{
-			project_id: z.string().describe("UUID of the project"),
+			...projectIdField(ctx),
 			cycle_id: z.string().describe("UUID of the cycle"),
 			work_item_ids: z
 				.array(z.string())
@@ -198,7 +198,7 @@ export function registerCycleTools(
 				cycles.addWorkItems(
 					ctx.config,
 					ctx.workspaceSlug,
-					params.project_id,
+					requireProjectId(ctx, params),
 					params.cycle_id,
 					params.work_item_ids,
 				),
@@ -209,7 +209,7 @@ export function registerCycleTools(
 		"remove_work_item_from_cycle",
 		"Remove a work item from a cycle.",
 		{
-			project_id: z.string().describe("UUID of the project"),
+			...projectIdField(ctx),
 			cycle_id: z.string().describe("UUID of the cycle"),
 			work_item_id: z.string().describe("UUID of the work item to remove"),
 		},
@@ -218,7 +218,7 @@ export function registerCycleTools(
 				cycles.removeWorkItem(
 					ctx.config,
 					ctx.workspaceSlug,
-					params.project_id,
+					requireProjectId(ctx, params),
 					params.cycle_id,
 					params.work_item_id,
 				),
@@ -229,7 +229,7 @@ export function registerCycleTools(
 		"list_cycle_work_items",
 		"List work items in a cycle.",
 		{
-			project_id: z.string().describe("UUID of the project"),
+			...projectIdField(ctx),
 			cycle_id: z.string().describe("UUID of the cycle"),
 			params: z
 				.record(z.unknown())
@@ -241,7 +241,7 @@ export function registerCycleTools(
 				const response = await cycles.listWorkItems(
 					ctx.config,
 					ctx.workspaceSlug,
-					params.project_id,
+					requireProjectId(ctx, params),
 					params.cycle_id,
 					params.params ?? null,
 				);
@@ -253,7 +253,7 @@ export function registerCycleTools(
 		"transfer_cycle_work_items",
 		"Transfer work items from one cycle to another.",
 		{
-			project_id: z.string().describe("UUID of the project"),
+			...projectIdField(ctx),
 			cycle_id: z.string().describe("UUID of the source cycle"),
 			new_cycle_id: z
 				.string()
@@ -264,7 +264,7 @@ export function registerCycleTools(
 				cycles.transferWorkItems(
 					ctx.config,
 					ctx.workspaceSlug,
-					params.project_id,
+					requireProjectId(ctx, params),
 					params.cycle_id,
 					{ new_cycle_id: params.new_cycle_id },
 				),
@@ -275,7 +275,7 @@ export function registerCycleTools(
 		"archive_cycle",
 		"Archive a cycle.",
 		{
-			project_id: z.string().describe("UUID of the project"),
+			...projectIdField(ctx),
 			cycle_id: z.string().describe("UUID of the cycle"),
 		},
 		async (params) =>
@@ -283,7 +283,7 @@ export function registerCycleTools(
 				await cycles.archive(
 					ctx.config,
 					ctx.workspaceSlug,
-					params.project_id,
+					requireProjectId(ctx, params),
 					params.cycle_id,
 				);
 				return true;
@@ -294,7 +294,7 @@ export function registerCycleTools(
 		"unarchive_cycle",
 		"Unarchive a cycle.",
 		{
-			project_id: z.string().describe("UUID of the project"),
+			...projectIdField(ctx),
 			cycle_id: z.string().describe("UUID of the cycle"),
 		},
 		async (params) =>
@@ -302,7 +302,7 @@ export function registerCycleTools(
 				await cycles.unarchive(
 					ctx.config,
 					ctx.workspaceSlug,
-					params.project_id,
+					requireProjectId(ctx, params),
 					params.cycle_id,
 				);
 				return true;

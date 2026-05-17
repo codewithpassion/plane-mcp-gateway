@@ -1,11 +1,40 @@
 import OAuthProvider from "@cloudflare/workers-oauth-provider";
-import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import {
+	McpServer,
+	type RegisteredTool,
+} from "@modelcontextprotocol/sdk/server/mcp.js";
 import { McpAgent } from "agents/mcp";
 import { z } from "zod";
 import { ClerkHandler } from "../clerk-handler";
 import { loadConfig } from "../plane/storage";
 import { registerPlaneTools } from "../plane/tools";
 import type { Props } from "../utils";
+
+/**
+ * Run `registerPlaneTools` while intercepting `server.tool` so we capture
+ * every `RegisteredTool` it produces. Lets us tear them all down later
+ * when the underlying config changes.
+ */
+function registerPlaneToolsTracked(
+	server: McpServer,
+	ctx: Parameters<typeof registerPlaneTools>[1],
+): RegisteredTool[] {
+	const tracked: RegisteredTool[] = [];
+	const originalTool = server.tool.bind(server) as typeof server.tool;
+	(server as { tool: typeof server.tool }).tool = ((
+		...args: Parameters<typeof server.tool>
+	) => {
+		const result = originalTool(...args);
+		tracked.push(result);
+		return result;
+	}) as typeof server.tool;
+	try {
+		registerPlaneTools(server, ctx);
+	} finally {
+		(server as { tool: typeof server.tool }).tool = originalTool;
+	}
+	return tracked;
+}
 
 const ALLOWED_ROLES = new Set<string>(["admin", "premium", "image_generation"]);
 
@@ -16,7 +45,8 @@ export class MyMCP extends McpAgent<Env, Record<string, never>, Props> {
 	});
 
 	private slug?: string;
-	private planeRegistered = false;
+	private planeTools: RegisteredTool[] = [];
+	private planeCfgVersion?: string;
 
 	async init() {
 		this.server.tool(
@@ -98,21 +128,35 @@ export class MyMCP extends McpAgent<Env, Record<string, never>, Props> {
 		if (slug && this.slug && slug !== this.slug) {
 			return new Response("session/slug mismatch", { status: 400 });
 		}
-		if (this.slug && !this.planeRegistered) {
+		if (this.slug) {
 			const cfg = await loadConfig(
 				this.env,
 				this.props?.userId ?? "",
 				this.slug,
 			);
-			if (!cfg) return new Response("unknown plane config", { status: 404 });
-			registerPlaneTools(this.server, {
-				config: {
-					baseUrl: cfg.baseUrl ?? "https://api.plane.so",
-					apiKey: cfg.apiKey,
-				},
-				workspaceSlug: cfg.planeWorkspaceSlug,
-			});
-			this.planeRegistered = true;
+			if (!cfg) {
+				// Config deleted while session is live — drop tools and 410.
+				// MCP client will see toolListChanged + an unknown-config error
+				// on its next call.
+				if (this.planeTools.length) {
+					for (const t of this.planeTools) t.remove();
+					this.planeTools = [];
+					this.planeCfgVersion = undefined;
+				}
+				return new Response("plane config no longer exists", { status: 410 });
+			}
+			if (this.planeCfgVersion !== cfg.updatedAt) {
+				for (const t of this.planeTools) t.remove();
+				this.planeTools = registerPlaneToolsTracked(this.server, {
+					config: {
+						baseUrl: cfg.baseUrl ?? "https://api.plane.so",
+						apiKey: cfg.apiKey,
+					},
+					workspaceSlug: cfg.planeWorkspaceSlug,
+					projectId: cfg.projectId,
+				});
+				this.planeCfgVersion = cfg.updatedAt;
+			}
 		}
 		return super.fetch(request);
 	}

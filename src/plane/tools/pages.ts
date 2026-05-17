@@ -3,7 +3,7 @@ import { z } from "zod";
 import type { PlaneAppContext } from "../client";
 import { pages } from "../resources/pages";
 import type { CreatePageBody } from "../types/pages";
-import { toolResult } from "./_helpers";
+import { projectIdField, requireProjectId, toolResult } from "./_helpers";
 
 export function registerPageTools(
 	server: McpServer,
@@ -25,16 +25,16 @@ export function registerPageTools(
 		"retrieve_project_page",
 		"Retrieve a project page by ID.",
 		{
-			project_id: z.string().describe("UUID of the project"),
+			...projectIdField(ctx),
 			page_id: z.string().describe("UUID of the page"),
 		},
-		async ({ project_id, page_id }) =>
+		async (input) =>
 			toolResult(() =>
 				pages.retrieveProjectPage(
 					ctx.config,
 					ctx.workspaceSlug,
-					project_id,
-					page_id,
+					requireProjectId(ctx, input),
+					input.page_id,
 				),
 			),
 	);
@@ -84,7 +84,7 @@ export function registerPageTools(
 		"create_project_page",
 		"Create a project page.",
 		{
-			project_id: z.string().describe("UUID of the project"),
+			...projectIdField(ctx),
 			name: z.string().describe("Page name"),
 			description_html: z.string().describe("Page content in HTML format"),
 			access: z
@@ -112,14 +112,15 @@ export function registerPageTools(
 				.optional()
 				.describe("External system source name"),
 		},
-		async ({ project_id, ...rest }) =>
-			toolResult(() =>
-				pages.createProjectPage(
+		async (input) =>
+			toolResult(() => {
+				const { project_id: _pid, ...rest } = input as Record<string, unknown>;
+				return pages.createProjectPage(
 					ctx.config,
 					ctx.workspaceSlug,
-					project_id,
-					rest as CreatePageBody,
-				),
-			),
+					requireProjectId(ctx, input),
+					rest as unknown as CreatePageBody,
+				);
+			}),
 	);
 }

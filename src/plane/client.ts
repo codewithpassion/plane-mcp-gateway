@@ -10,6 +10,7 @@ export interface PlaneConfig {
 export interface PlaneAppContext {
 	config: PlaneConfig;
 	workspaceSlug: string;
+	projectId?: string;
 }
 
 export interface PlaneRequestOptions {

@@ -7,7 +7,12 @@ import type {
 	CreateWorkItemCommentBody,
 	UpdateWorkItemCommentBody,
 } from "../types/work_item_comments";
-import { stripNullish, toolResult } from "./_helpers";
+import {
+	projectIdField,
+	requireProjectId,
+	stripNullish,
+	toolResult,
+} from "./_helpers";
 
 export function registerWorkItemCommentTools(
 	server: McpServer,
@@ -17,7 +22,7 @@ export function registerWorkItemCommentTools(
 		"list_work_item_comments",
 		"List comments for a work item.",
 		{
-			project_id: z.string().describe("UUID of the project"),
+			...projectIdField(ctx),
 			work_item_id: z.string().describe("UUID of the work item"),
 			params: z
 				.record(z.unknown())
@@ -29,7 +34,7 @@ export function registerWorkItemCommentTools(
 				const response = await workItems.listComments(
 					ctx.config,
 					ctx.workspaceSlug,
-					args.project_id,
+					requireProjectId(ctx, args),
 					args.work_item_id,
 					args.params ?? null,
 				);
@@ -41,7 +46,7 @@ export function registerWorkItemCommentTools(
 		"retrieve_work_item_comment",
 		"Retrieve a specific comment for a work item.",
 		{
-			project_id: z.string().describe("UUID of the project"),
+			...projectIdField(ctx),
 			work_item_id: z.string().describe("UUID of the work item"),
 			comment_id: z.string().describe("UUID of the comment"),
 		},
@@ -50,7 +55,7 @@ export function registerWorkItemCommentTools(
 				workItems.retrieveComment(
 					ctx.config,
 					ctx.workspaceSlug,
-					args.project_id,
+					requireProjectId(ctx, args),
 					args.work_item_id,
 					args.comment_id,
 				),
@@ -61,7 +66,7 @@ export function registerWorkItemCommentTools(
 		"create_work_item_comment",
 		"Create a comment for a work item.",
 		{
-			project_id: z.string().describe("UUID of the project"),
+			...projectIdField(ctx),
 			work_item_id: z.string().describe("UUID of the work item"),
 			comment_html: z
 				.string()
@@ -93,7 +98,7 @@ export function registerWorkItemCommentTools(
 				return workItems.createComment(
 					ctx.config,
 					ctx.workspaceSlug,
-					args.project_id,
+					requireProjectId(ctx, args),
 					args.work_item_id,
 					data,
 				);
@@ -104,7 +109,7 @@ export function registerWorkItemCommentTools(
 		"update_work_item_comment",
 		"Update a comment for a work item.",
 		{
-			project_id: z.string().describe("UUID of the project"),
+			...projectIdField(ctx),
 			work_item_id: z.string().describe("UUID of the work item"),
 			comment_id: z.string().describe("UUID of the comment"),
 			comment_html: z
@@ -137,7 +142,7 @@ export function registerWorkItemCommentTools(
 				return workItems.updateComment(
 					ctx.config,
 					ctx.workspaceSlug,
-					args.project_id,
+					requireProjectId(ctx, args),
 					args.work_item_id,
 					args.comment_id,
 					data,
@@ -149,7 +154,7 @@ export function registerWorkItemCommentTools(
 		"delete_work_item_comment",
 		"Delete a comment for a work item.",
 		{
-			project_id: z.string().describe("UUID of the project"),
+			...projectIdField(ctx),
 			work_item_id: z.string().describe("UUID of the work item"),
 			comment_id: z.string().describe("UUID of the comment"),
 		},
@@ -158,7 +163,7 @@ export function registerWorkItemCommentTools(
 				workItems.deleteComment(
 					ctx.config,
 					ctx.workspaceSlug,
-					args.project_id,
+					requireProjectId(ctx, args),
 					args.work_item_id,
 					args.comment_id,
 				),

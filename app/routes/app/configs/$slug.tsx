@@ -20,11 +20,13 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { api, type PlaneConfigRecord } from "@/lib/api";
+import { api, type PlaneConfigRecord, type ProjectOption } from "@/lib/api";
 
 export const Route = createFileRoute("/app/configs/$slug")({
 	component: EditConfigPage,
 });
+
+const ALL_PROJECTS = "__all__";
 
 function EditConfigPage() {
 	const { slug } = Route.useParams();
@@ -36,10 +38,14 @@ function EditConfigPage() {
 		planeWorkspaceSlug: "",
 		apiKey: "",
 		baseUrl: "",
+		projectId: ALL_PROJECTS,
 	});
 	const [saving, setSaving] = useState(false);
 	const [confirmDelete, setConfirmDelete] = useState(false);
 	const [deleting, setDeleting] = useState(false);
+	const [projects, setProjects] = useState<ProjectOption[] | null>(null);
+	const [projectsError, setProjectsError] = useState<string | null>(null);
+	const [loadingProjects, setLoadingProjects] = useState(false);
 
 	useEffect(() => {
 		api
@@ -51,12 +57,34 @@ function EditConfigPage() {
 					planeWorkspaceSlug: r.planeWorkspaceSlug,
 					apiKey: "",
 					baseUrl: r.baseUrl ?? "",
+					projectId: r.projectId ?? ALL_PROJECTS,
 				});
 			})
 			.catch((e: Error) => setLoadError(e.message));
 	}, [slug]);
 
-	function update<K extends keyof typeof form>(key: K, value: string) {
+	async function loadProjects() {
+		setLoadingProjects(true);
+		setProjectsError(null);
+		try {
+			const list = await api.listProjects(slug);
+			setProjects(list);
+		} catch (e) {
+			setProjectsError((e as Error).message);
+		} finally {
+			setLoadingProjects(false);
+		}
+	}
+
+	// biome-ignore lint/correctness/useExhaustiveDependencies: load once per slug
+	useEffect(() => {
+		if (record) loadProjects();
+	}, [record?.slug]);
+
+	function update<K extends keyof typeof form>(
+		key: K,
+		value: (typeof form)[K],
+	) {
 		setForm((f) => ({ ...f, [key]: value }));
 	}
 
@@ -64,11 +92,18 @@ function EditConfigPage() {
 		e.preventDefault();
 		setSaving(true);
 		try {
+			const pinned =
+				form.projectId !== ALL_PROJECTS
+					? projects?.find((p) => p.id === form.projectId)
+					: null;
 			const updated = await api.update(slug, {
 				displayName: form.displayName,
 				planeWorkspaceSlug: form.planeWorkspaceSlug,
 				baseUrl: form.baseUrl || undefined,
 				...(form.apiKey ? { apiKey: form.apiKey } : {}),
+				projectId: form.projectId === ALL_PROJECTS ? null : form.projectId,
+				projectName: pinned ? pinned.name : null,
+				projectIdentifier: pinned ? pinned.identifier : null,
 			});
 			setRecord(updated);
 			setForm((f) => ({ ...f, apiKey: "" }));
@@ -165,6 +200,53 @@ function EditConfigPage() {
 								value={form.baseUrl}
 								onChange={(e) => update("baseUrl", e.target.value)}
 							/>
+						</div>
+						<div className="space-y-2">
+							<div className="flex items-center justify-between">
+								<Label htmlFor="projectId">Pinned project</Label>
+								<button
+									type="button"
+									className="text-xs text-muted-foreground hover:text-foreground underline"
+									onClick={loadProjects}
+									disabled={loadingProjects}
+								>
+									{loadingProjects ? "Loading..." : "Refresh"}
+								</button>
+							</div>
+							<select
+								id="projectId"
+								className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+								value={form.projectId}
+								onChange={(e) => update("projectId", e.target.value)}
+								disabled={loadingProjects}
+							>
+								<option value={ALL_PROJECTS}>
+									All projects (workspace-wide)
+								</option>
+								{projects?.map((p) => (
+									<option key={p.id} value={p.id}>
+										{p.name} ({p.identifier})
+									</option>
+								))}
+								{/* Preserve current pin even if the project list couldn't load. */}
+								{record.projectId &&
+									!projects?.some((p) => p.id === record.projectId) && (
+										<option value={record.projectId}>
+											{record.projectName ?? record.projectId}
+											{record.projectIdentifier
+												? ` (${record.projectIdentifier})`
+												: ""}
+										</option>
+									)}
+							</select>
+							<p className="text-xs text-muted-foreground">
+								When pinned, MCP tools auto-scope to this project and the{" "}
+								<code>project_id</code> parameter is removed from tool schemas.
+								Tools that manage projects (list/create/delete) are hidden.
+							</p>
+							{projectsError && (
+								<p className="text-xs text-destructive">{projectsError}</p>
+							)}
 						</div>
 					</CardContent>
 					<CardFooter className="justify-between gap-2">

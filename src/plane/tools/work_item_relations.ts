@@ -3,7 +3,7 @@ import { z } from "zod";
 import type { PlaneAppContext } from "../client";
 import { workItems } from "../resources/work_items";
 import type { WorkItemRelationTypeEnum } from "../types/common";
-import { toolResult } from "./_helpers";
+import { projectIdField, requireProjectId, toolResult } from "./_helpers";
 
 const RELATION_TYPES: WorkItemRelationTypeEnum[] = [
 	"blocking",
@@ -24,7 +24,7 @@ export function registerWorkItemRelationTools(
 		"list_work_item_relations",
 		"List relations for a work item. Returns lists of related work items by relation type: blocking, blocked_by, duplicate, relates_to, start_after, start_before, finish_after, finish_before.",
 		{
-			project_id: z.string().describe("UUID of the project"),
+			...projectIdField(ctx),
 			work_item_id: z.string().describe("UUID of the work item"),
 		},
 		async (args) =>
@@ -32,7 +32,7 @@ export function registerWorkItemRelationTools(
 				workItems.listRelations(
 					ctx.config,
 					ctx.workspaceSlug,
-					args.project_id,
+					requireProjectId(ctx, args),
 					args.work_item_id,
 				),
 			),
@@ -42,7 +42,7 @@ export function registerWorkItemRelationTools(
 		"create_work_item_relation",
 		"Create relations for a work item.",
 		{
-			project_id: z.string().describe("UUID of the project"),
+			...projectIdField(ctx),
 			work_item_id: z.string().describe("UUID of the work item"),
 			relation_type: z
 				.string()
@@ -67,7 +67,7 @@ export function registerWorkItemRelationTools(
 				return workItems.createRelation(
 					ctx.config,
 					ctx.workspaceSlug,
-					args.project_id,
+					requireProjectId(ctx, args),
 					args.work_item_id,
 					{
 						relation_type: args.relation_type as WorkItemRelationTypeEnum,
@@ -81,7 +81,7 @@ export function registerWorkItemRelationTools(
 		"remove_work_item_relation",
 		"Remove a relation from a work item.",
 		{
-			project_id: z.string().describe("UUID of the project"),
+			...projectIdField(ctx),
 			work_item_id: z.string().describe("UUID of the work item"),
 			related_issue: z
 				.string()
@@ -92,7 +92,7 @@ export function registerWorkItemRelationTools(
 				workItems.removeRelation(
 					ctx.config,
 					ctx.workspaceSlug,
-					args.project_id,
+					requireProjectId(ctx, args),
 					args.work_item_id,
 					{ related_issue: args.related_issue },
 				),

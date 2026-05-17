@@ -4,6 +4,9 @@ export interface PlaneConfigRecord {
 	planeWorkspaceSlug: string;
 	apiKey: string;
 	baseUrl?: string;
+	projectId?: string;
+	projectName?: string;
+	projectIdentifier?: string;
 	createdAt: string;
 	updatedAt: string;
 }

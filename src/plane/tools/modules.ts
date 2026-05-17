@@ -4,7 +4,7 @@ import type { PlaneAppContext } from "../client";
 import { modules } from "../resources/modules";
 import type { ModuleStatusEnum } from "../types/common";
 import type { CreateModuleBody, UpdateModuleBody } from "../types/modules";
-import { toolResult } from "./_helpers";
+import { projectIdField, requireProjectId, toolResult } from "./_helpers";
 
 const MODULE_STATUS_VALUES: ReadonlySet<ModuleStatusEnum> = new Set([
 	"backlog",
@@ -30,7 +30,7 @@ export function registerModuleTools(
 		"list_modules",
 		"List all modules in a project.",
 		{
-			project_id: z.string().describe("UUID of the project"),
+			...projectIdField(ctx),
 			params: z
 				.record(z.unknown())
 				.optional()
@@ -41,7 +41,7 @@ export function registerModuleTools(
 				const response = await modules.list(
 					ctx.config,
 					ctx.workspaceSlug,
-					params.project_id,
+					requireProjectId(ctx, params),
 					params.params ?? null,
 				);
 				return response.results;
@@ -52,7 +52,7 @@ export function registerModuleTools(
 		"create_module",
 		"Create a new module.",
 		{
-			project_id: z.string().describe("UUID of the project"),
+			...projectIdField(ctx),
 			name: z.string().describe("Module name"),
 			description: z.string().optional().describe("Module description"),
 			start_date: z
@@ -99,7 +99,7 @@ export function registerModuleTools(
 				return modules.create(
 					ctx.config,
 					ctx.workspaceSlug,
-					params.project_id,
+					requireProjectId(ctx, params),
 					data,
 				);
 			}),
@@ -109,7 +109,7 @@ export function registerModuleTools(
 		"retrieve_module",
 		"Retrieve a module by ID.",
 		{
-			project_id: z.string().describe("UUID of the project"),
+			...projectIdField(ctx),
 			module_id: z.string().describe("UUID of the module"),
 		},
 		async (params) =>
@@ -117,7 +117,7 @@ export function registerModuleTools(
 				modules.retrieve(
 					ctx.config,
 					ctx.workspaceSlug,
-					params.project_id,
+					requireProjectId(ctx, params),
 					params.module_id,
 				),
 			),
@@ -127,7 +127,7 @@ export function registerModuleTools(
 		"update_module",
 		"Update a module by ID.",
 		{
-			project_id: z.string().describe("UUID of the project"),
+			...projectIdField(ctx),
 			module_id: z.string().describe("UUID of the module"),
 			name: z.string().optional().describe("Module name"),
 			description: z.string().optional().describe("Module description"),
@@ -175,7 +175,7 @@ export function registerModuleTools(
 				return modules.update(
 					ctx.config,
 					ctx.workspaceSlug,
-					params.project_id,
+					requireProjectId(ctx, params),
 					params.module_id,
 					data,
 				);
@@ -186,7 +186,7 @@ export function registerModuleTools(
 		"delete_module",
 		"Delete a module by ID.",
 		{
-			project_id: z.string().describe("UUID of the project"),
+			...projectIdField(ctx),
 			module_id: z.string().describe("UUID of the module"),
 		},
 		async (params) =>
@@ -194,7 +194,7 @@ export function registerModuleTools(
 				modules.delete(
 					ctx.config,
 					ctx.workspaceSlug,
-					params.project_id,
+					requireProjectId(ctx, params),
 					params.module_id,
 				),
 			),
@@ -204,7 +204,7 @@ export function registerModuleTools(
 		"list_archived_modules",
 		"List archived modules in a project.",
 		{
-			project_id: z.string().describe("UUID of the project"),
+			...projectIdField(ctx),
 			params: z
 				.record(z.unknown())
 				.optional()
@@ -215,7 +215,7 @@ export function registerModuleTools(
 				const response = await modules.listArchived(
 					ctx.config,
 					ctx.workspaceSlug,
-					params.project_id,
+					requireProjectId(ctx, params),
 					params.params ?? null,
 				);
 				return response.results;
@@ -226,7 +226,7 @@ export function registerModuleTools(
 		"add_work_items_to_module",
 		"Add work items to a module.",
 		{
-			project_id: z.string().describe("UUID of the project"),
+			...projectIdField(ctx),
 			module_id: z.string().describe("UUID of the module"),
 			work_item_ids: z
 				.array(z.string())
@@ -237,7 +237,7 @@ export function registerModuleTools(
 				modules.addWorkItems(
 					ctx.config,
 					ctx.workspaceSlug,
-					params.project_id,
+					requireProjectId(ctx, params),
 					params.module_id,
 					params.work_item_ids,
 				),
@@ -248,7 +248,7 @@ export function registerModuleTools(
 		"remove_work_item_from_module",
 		"Remove a work item from a module.",
 		{
-			project_id: z.string().describe("UUID of the project"),
+			...projectIdField(ctx),
 			module_id: z.string().describe("UUID of the module"),
 			work_item_id: z.string().describe("UUID of the work item to remove"),
 		},
@@ -257,7 +257,7 @@ export function registerModuleTools(
 				modules.removeWorkItem(
 					ctx.config,
 					ctx.workspaceSlug,
-					params.project_id,
+					requireProjectId(ctx, params),
 					params.module_id,
 					params.work_item_id,
 				),
@@ -268,7 +268,7 @@ export function registerModuleTools(
 		"list_module_work_items",
 		"List work items in a module.",
 		{
-			project_id: z.string().describe("UUID of the project"),
+			...projectIdField(ctx),
 			module_id: z.string().describe("UUID of the module"),
 			params: z
 				.record(z.unknown())
@@ -280,7 +280,7 @@ export function registerModuleTools(
 				const response = await modules.listWorkItems(
 					ctx.config,
 					ctx.workspaceSlug,
-					params.project_id,
+					requireProjectId(ctx, params),
 					params.module_id,
 					params.params ?? null,
 				);
@@ -292,7 +292,7 @@ export function registerModuleTools(
 		"archive_module",
 		"Archive a module.",
 		{
-			project_id: z.string().describe("UUID of the project"),
+			...projectIdField(ctx),
 			module_id: z.string().describe("UUID of the module"),
 		},
 		async (params) =>
@@ -300,7 +300,7 @@ export function registerModuleTools(
 				modules.archive(
 					ctx.config,
 					ctx.workspaceSlug,
-					params.project_id,
+					requireProjectId(ctx, params),
 					params.module_id,
 				),
 			),
@@ -310,7 +310,7 @@ export function registerModuleTools(
 		"unarchive_module",
 		"Unarchive a module.",
 		{
-			project_id: z.string().describe("UUID of the project"),
+			...projectIdField(ctx),
 			module_id: z.string().describe("UUID of the module"),
 		},
 		async (params) =>
@@ -318,7 +318,7 @@ export function registerModuleTools(
 				modules.unarchive(
 					ctx.config,
 					ctx.workspaceSlug,
-					params.project_id,
+					requireProjectId(ctx, params),
 					params.module_id,
 				),
 			),

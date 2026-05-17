@@ -4,6 +4,9 @@ export type PlaneConfigRecord = {
 	planeWorkspaceSlug: string;
 	apiKey: string;
 	baseUrl?: string;
+	projectId?: string;
+	projectName?: string;
+	projectIdentifier?: string;
 	createdAt: string;
 	updatedAt: string;
 };
@@ -14,9 +17,34 @@ export type CreateConfigInput = {
 	planeWorkspaceSlug: string;
 	apiKey: string;
 	baseUrl?: string;
+	projectId?: string;
+	projectName?: string;
+	projectIdentifier?: string;
 };
 
-export type UpdateConfigInput = Partial<Omit<CreateConfigInput, "slug">>;
+export type ProbeProjectsInput = {
+	planeWorkspaceSlug: string;
+	apiKey: string;
+	baseUrl?: string;
+};
+
+export type UpdateConfigInput = Partial<
+	Omit<
+		CreateConfigInput,
+		"slug" | "projectId" | "projectName" | "projectIdentifier"
+	>
+> & {
+	// null clears the pin (all-projects mode); undefined leaves it unchanged.
+	projectId?: string | null;
+	projectName?: string | null;
+	projectIdentifier?: string | null;
+};
+
+export type ProjectOption = {
+	id: string;
+	name: string;
+	identifier: string;
+};
 
 export type TestResult =
 	| { ok: true; workspace?: Record<string, unknown> }
@@ -62,5 +90,14 @@ export const api = {
 	test: (slug: string) =>
 		request<TestResult>(`/api/configs/${encodeURIComponent(slug)}/test`, {
 			method: "POST",
+		}),
+	listProjects: (slug: string) =>
+		request<ProjectOption[]>(
+			`/api/configs/${encodeURIComponent(slug)}/projects`,
+		),
+	probeProjects: (body: ProbeProjectsInput) =>
+		request<ProjectOption[]>("/api/configs/probe-projects", {
+			method: "POST",
+			body: JSON.stringify(body),
 		}),
 };

@@ -2,7 +2,7 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import type { PlaneAppContext } from "../client";
 import { workItems } from "../resources/work_items";
-import { toolResult } from "./_helpers";
+import { projectIdField, requireProjectId, toolResult } from "./_helpers";
 
 export function registerWorkItemActivityTools(
 	server: McpServer,
@@ -12,7 +12,7 @@ export function registerWorkItemActivityTools(
 		"list_work_item_activities",
 		"List activities for a work item.",
 		{
-			project_id: z.string().describe("UUID of the project"),
+			...projectIdField(ctx),
 			work_item_id: z.string().describe("UUID of the work item"),
 			params: z
 				.record(z.unknown())
@@ -24,7 +24,7 @@ export function registerWorkItemActivityTools(
 				const response = await workItems.listActivities(
 					ctx.config,
 					ctx.workspaceSlug,
-					args.project_id,
+					requireProjectId(ctx, args),
 					args.work_item_id,
 					args.params ?? null,
 				);
@@ -36,7 +36,7 @@ export function registerWorkItemActivityTools(
 		"retrieve_work_item_activity",
 		"Retrieve a specific activity for a work item.",
 		{
-			project_id: z.string().describe("UUID of the project"),
+			...projectIdField(ctx),
 			work_item_id: z.string().describe("UUID of the work item"),
 			activity_id: z.string().describe("UUID of the activity"),
 		},
@@ -45,7 +45,7 @@ export function registerWorkItemActivityTools(
 				workItems.retrieveActivity(
 					ctx.config,
 					ctx.workspaceSlug,
-					args.project_id,
+					requireProjectId(ctx, args),
 					args.work_item_id,
 					args.activity_id,
 				),

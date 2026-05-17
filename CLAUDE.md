@@ -37,10 +37,19 @@ OAuthProvider responses pass through `wrapOAuthResponse()` (in `src/mcp/mcp-app.
 
 **3. Plane tool suite** (`src/plane/`)
 - ~109 tools, ported from the Python `plane-mcp-server`. Tool names / params verbatim.
-- `client.ts` — `planeFetch()` (retry/backoff) + `PlaneAppContext` type.
+- `client.ts` — `planeFetch()` (retry/backoff) + `PlaneAppContext` type (`config`, `workspaceSlug`, optional `projectId`).
 - `storage.ts` — `PlaneConfigRecord`, `cfgKey(userId, slug) = 'plane:cfg:<userId>:<slug>'`, `load/save/delete/listConfigs`, `validateSlug`, `redactApiKey`.
 - `errors.ts` — `PlaneError`, `HttpError`, `ConfigurationError`.
-- `types/`, `resources/`, `tools/` — one file per Plane resource. `tools/_helpers.ts` provides `toolResult(fn)` and `stripNullish(obj)`.
+- `types/`, `resources/`, `tools/` — one file per Plane resource. `tools/_helpers.ts` provides `toolResult(fn)`, `stripNullish(obj)`, and the project-pinning helpers `projectIdField(ctx, opts?)` / `resolveProjectId(ctx, params)` / `requireProjectId(ctx, params)`.
+
+### Project pinning
+
+A config may optionally pin a single Plane project (`PlaneConfigRecord.projectId`). When pinned:
+- Tool schemas omit the `project_id` parameter entirely — `projectIdField(ctx)` returns `{}` and `requireProjectId(ctx, params)` reads `ctx.projectId`.
+- `list_projects`, `create_project`, and `delete_project` tools are not registered.
+- `retrieve_project` / `update_project` / `*_features` / member tools still register, but operate against the pinned project.
+
+When NOT pinned, every tool that touches a project takes a required `project_id` (the original behavior).
 
 **4. JSON API** (`src/api/index.ts`) — Hono app. Auth middleware: `@clerk/backend`'s `createClerkClient({ secretKey, publishableKey })` + `authenticateRequest()` → 401 on any failure. Routes (mounted under `/api` by `src/server.ts`, which strips the prefix):
 
@@ -52,6 +61,7 @@ OAuthProvider responses pass through `wrapOAuthResponse()` (in `src/mcp/mcp-app.
 | PATCH | `/configs/:slug` | Partial update. apiKey optional. |
 | DELETE | `/configs/:slug` | 204. |
 | POST | `/configs/:slug/test` | Calls Plane `GET /workspaces/<workspaceSlug>`. Returns `{ ok, workspace? \| error? }`. |
+| GET | `/configs/:slug/projects` | Lists projects for the config's workspace (used by the UI project picker). Returns `[{ id, name, identifier }]`. |
 
 The stored `apiKey` is never returned over the wire — always `••••<last4>`.
 
@@ -177,7 +187,7 @@ The slug must already exist — create it in the UI at http://localhost:8788/app
 
 1. **MCP path requires a slug**: `/mcp` alone is unrouted (404). Always `/mcp/<slug>`. The bare `/mcp` route exists only as an internal target the dispatcher rewrites to.
 2. **Slug is sealed per DO session**: an MCP client cannot reuse one session against two slugs — the second request 400s. Connect a fresh session per slug.
-3. **Tools cached for DO lifetime**: deleting a Plane config in the UI does NOT evict tools from an actively connected MCP session. New sessions to that slug return 404. Acceptable for step 1.
+3. **Tools auto-refresh on config change**: each MCP request reloads the config from KV and compares `updatedAt` against the last-registered version. On change, all Plane tools are `remove()`d and re-registered (MCP `notifications/tools/list_changed` is emitted automatically). On config deletion, tools are torn down and the request returns 410. Note: KV reads have up to ~60 s of cross-colo staleness, so changes typically propagate within seconds but may take up to a minute in the worst case.
 4. **`/api/configs` returns 500 without Clerk keys**: in keyless mode the UI works for sign-in but `@clerk/backend` can't validate sessions. Set `CLERK_SECRET_KEY` + `CLERK_PUBLISHABLE_KEY` in `.env` to exercise the API.
 5. **Cloudflare Vite plugin + multi-account**: `bun run dev` fails with "More than one account available" if you have multiple CF accounts and no `CLOUDFLARE_ACCOUNT_ID`. `remoteBindings: false` in `vite.config.ts` avoids the remote proxy session entirely — local miniflare bindings only.
 6. **SSE vs Streamable-HTTP**: `/sse/<slug>` is deprecated; use `/mcp/<slug>` for new clients.

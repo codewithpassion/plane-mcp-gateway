@@ -2,7 +2,7 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import type { PlaneAppContext } from "../client";
 import { milestones } from "../resources/milestones";
-import { toolResult } from "./_helpers";
+import { projectIdField, requireProjectId, toolResult } from "./_helpers";
 
 export function registerMilestoneTools(
 	server: McpServer,
@@ -12,19 +12,19 @@ export function registerMilestoneTools(
 		"list_milestones",
 		"List all milestones in a project.",
 		{
-			project_id: z.string().describe("UUID of the project"),
+			...projectIdField(ctx),
 			params: z
 				.record(z.unknown())
 				.optional()
 				.describe("Optional query parameters as a dictionary"),
 		},
-		async ({ project_id, params }) =>
+		async (input) =>
 			toolResult(async () => {
 				const response = await milestones.list(
 					ctx.config,
 					ctx.workspaceSlug,
-					project_id,
-					params ?? null,
+					requireProjectId(ctx, input),
+					input.params ?? null,
 				);
 				return response.results;
 			}),
@@ -34,7 +34,7 @@ export function registerMilestoneTools(
 		"create_milestone",
 		"Create a new milestone.",
 		{
-			project_id: z.string().describe("UUID of the project"),
+			...projectIdField(ctx),
 			title: z.string().describe("Milestone title"),
 			target_date: z
 				.string()
@@ -46,14 +46,19 @@ export function registerMilestoneTools(
 				.describe("External system source name"),
 			external_id: z.string().optional().describe("External system identifier"),
 		},
-		async ({ project_id, title, target_date, external_source, external_id }) =>
+		async (input) =>
 			toolResult(() =>
-				milestones.create(ctx.config, ctx.workspaceSlug, project_id, {
-					title,
-					target_date,
-					external_source,
-					external_id,
-				}),
+				milestones.create(
+					ctx.config,
+					ctx.workspaceSlug,
+					requireProjectId(ctx, input),
+					{
+						title: input.title,
+						target_date: input.target_date,
+						external_source: input.external_source,
+						external_id: input.external_id,
+					},
+				),
 			),
 	);
 
@@ -61,16 +66,16 @@ export function registerMilestoneTools(
 		"retrieve_milestone",
 		"Retrieve a milestone by ID.",
 		{
-			project_id: z.string().describe("UUID of the project"),
+			...projectIdField(ctx),
 			milestone_id: z.string().describe("UUID of the milestone"),
 		},
-		async ({ project_id, milestone_id }) =>
+		async (input) =>
 			toolResult(() =>
 				milestones.retrieve(
 					ctx.config,
 					ctx.workspaceSlug,
-					project_id,
-					milestone_id,
+					requireProjectId(ctx, input),
+					input.milestone_id,
 				),
 			),
 	);
@@ -79,7 +84,7 @@ export function registerMilestoneTools(
 		"update_milestone",
 		"Update a milestone by ID.",
 		{
-			project_id: z.string().describe("UUID of the project"),
+			...projectIdField(ctx),
 			milestone_id: z.string().describe("UUID of the milestone"),
 			title: z.string().optional().describe("Milestone title"),
 			target_date: z
@@ -92,21 +97,19 @@ export function registerMilestoneTools(
 				.describe("External system source name"),
 			external_id: z.string().optional().describe("External system identifier"),
 		},
-		async ({
-			project_id,
-			milestone_id,
-			title,
-			target_date,
-			external_source,
-			external_id,
-		}) =>
+		async (input) =>
 			toolResult(() =>
 				milestones.update(
 					ctx.config,
 					ctx.workspaceSlug,
-					project_id,
-					milestone_id,
-					{ title, target_date, external_source, external_id },
+					requireProjectId(ctx, input),
+					input.milestone_id,
+					{
+						title: input.title,
+						target_date: input.target_date,
+						external_source: input.external_source,
+						external_id: input.external_id,
+					},
 				),
 			),
 	);
@@ -115,16 +118,16 @@ export function registerMilestoneTools(
 		"delete_milestone",
 		"Delete a milestone by ID.",
 		{
-			project_id: z.string().describe("UUID of the project"),
+			...projectIdField(ctx),
 			milestone_id: z.string().describe("UUID of the milestone"),
 		},
-		async ({ project_id, milestone_id }) =>
+		async (input) =>
 			toolResult(() =>
 				milestones.delete(
 					ctx.config,
 					ctx.workspaceSlug,
-					project_id,
-					milestone_id,
+					requireProjectId(ctx, input),
+					input.milestone_id,
 				),
 			),
 	);
@@ -133,20 +136,20 @@ export function registerMilestoneTools(
 		"add_work_items_to_milestone",
 		"Add work items to a milestone.",
 		{
-			project_id: z.string().describe("UUID of the project"),
+			...projectIdField(ctx),
 			milestone_id: z.string().describe("UUID of the milestone"),
 			work_item_ids: z
 				.array(z.string())
 				.describe("List of work item UUIDs to add to the milestone"),
 		},
-		async ({ project_id, milestone_id, work_item_ids }) =>
+		async (input) =>
 			toolResult(() =>
 				milestones.addWorkItems(
 					ctx.config,
 					ctx.workspaceSlug,
-					project_id,
-					milestone_id,
-					work_item_ids,
+					requireProjectId(ctx, input),
+					input.milestone_id,
+					input.work_item_ids,
 				),
 			),
 	);
@@ -155,20 +158,20 @@ export function registerMilestoneTools(
 		"remove_work_items_from_milestone",
 		"Remove work items from a milestone.",
 		{
-			project_id: z.string().describe("UUID of the project"),
+			...projectIdField(ctx),
 			milestone_id: z.string().describe("UUID of the milestone"),
 			work_item_ids: z
 				.array(z.string())
 				.describe("List of work item UUIDs to remove from the milestone"),
 		},
-		async ({ project_id, milestone_id, work_item_ids }) =>
+		async (input) =>
 			toolResult(() =>
 				milestones.removeWorkItems(
 					ctx.config,
 					ctx.workspaceSlug,
-					project_id,
-					milestone_id,
-					work_item_ids,
+					requireProjectId(ctx, input),
+					input.milestone_id,
+					input.work_item_ids,
 				),
 			),
 	);
@@ -177,21 +180,21 @@ export function registerMilestoneTools(
 		"list_milestone_work_items",
 		"List work items in a milestone.",
 		{
-			project_id: z.string().describe("UUID of the project"),
+			...projectIdField(ctx),
 			milestone_id: z.string().describe("UUID of the milestone"),
 			params: z
 				.record(z.unknown())
 				.optional()
 				.describe("Optional query parameters as a dictionary"),
 		},
-		async ({ project_id, milestone_id, params }) =>
+		async (input) =>
 			toolResult(async () => {
 				const response = await milestones.listWorkItems(
 					ctx.config,
 					ctx.workspaceSlug,
-					project_id,
-					milestone_id,
-					params ?? null,
+					requireProjectId(ctx, input),
+					input.milestone_id,
+					input.params ?? null,
 				);
 				return response.results;
 			}),

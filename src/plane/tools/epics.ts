@@ -5,7 +5,7 @@ import { epics } from "../resources/epics";
 import { workItemTypes } from "../resources/work_item_types";
 import type { PriorityEnum } from "../types/common";
 import type { WorkItemType } from "../types/work_item_types";
-import { toolResult } from "./_helpers";
+import { projectIdField, requireProjectId, toolResult } from "./_helpers";
 
 const PRIORITIES: readonly PriorityEnum[] = [
 	"urgent",
@@ -56,7 +56,7 @@ export function registerEpicTools(
 		"list_epics",
 		"List all epics in a project.",
 		{
-			project_id: z.string().describe("UUID of the project"),
+			...projectIdField(ctx),
 			cursor: z
 				.string()
 				.optional()
@@ -67,13 +67,13 @@ export function registerEpicTools(
 				.optional()
 				.describe("Number of results per page (1-100)"),
 		},
-		async ({ project_id, cursor, per_page }) =>
+		async (input) =>
 			toolResult(async () => {
 				const response = await epics.list(
 					ctx.config,
 					ctx.workspaceSlug,
-					project_id,
-					{ cursor, per_page },
+					requireProjectId(ctx, input),
+					{ cursor: input.cursor, per_page: input.per_page },
 				);
 				return response.results;
 			}),
@@ -83,7 +83,7 @@ export function registerEpicTools(
 		"create_epic",
 		"Create a new epic.",
 		{
-			project_id: z.string().describe("UUID of the project"),
+			...projectIdField(ctx),
 			name: z.string().describe("Epic name (required)"),
 			assignees: z
 				.array(z.string())
@@ -125,30 +125,13 @@ export function registerEpicTools(
 			state: z.string().optional().describe("UUID of the state"),
 			estimate_point: z.string().optional().describe("Estimate point value"),
 		},
-		async ({
-			project_id,
-			name,
-			assignees,
-			labels,
-			point,
-			description_html,
-			description_stripped,
-			priority,
-			start_date,
-			target_date,
-			sort_order,
-			is_draft,
-			external_source,
-			external_id,
-			parent,
-			state,
-			estimate_point,
-		}) =>
+		async (input) =>
 			toolResult(async () => {
+				const projectId = requireProjectId(ctx, input);
 				const epicType = await getEpicWorkItemType(
 					ctx.config,
 					ctx.workspaceSlug,
-					project_id,
+					projectId,
 				);
 				if (epicType === null) {
 					throw new Error(
@@ -158,31 +141,31 @@ export function registerEpicTools(
 				const workItem = await epics.createWorkItem(
 					ctx.config,
 					ctx.workspaceSlug,
-					project_id,
+					projectId,
 					{
-						name,
-						assignees,
-						labels,
+						name: input.name,
+						assignees: input.assignees,
+						labels: input.labels,
 						type_id: epicType.id ?? undefined,
-						point,
-						description_html,
-						description_stripped,
-						priority: validatePriorityOptional(priority),
-						start_date,
-						target_date,
-						sort_order,
-						is_draft,
-						external_source,
-						external_id,
-						parent,
-						state,
-						estimate_point,
+						point: input.point,
+						description_html: input.description_html,
+						description_stripped: input.description_stripped,
+						priority: validatePriorityOptional(input.priority),
+						start_date: input.start_date,
+						target_date: input.target_date,
+						sort_order: input.sort_order,
+						is_draft: input.is_draft,
+						external_source: input.external_source,
+						external_id: input.external_id,
+						parent: input.parent,
+						state: input.state,
+						estimate_point: input.estimate_point,
 					},
 				);
 				return epics.retrieve(
 					ctx.config,
 					ctx.workspaceSlug,
-					project_id,
+					projectId,
 					workItem.id ?? "",
 				);
 			}),
@@ -192,7 +175,7 @@ export function registerEpicTools(
 		"update_epic",
 		"Update an epic by ID.",
 		{
-			project_id: z.string().describe("UUID of the project"),
+			...projectIdField(ctx),
 			epic_id: z.string().describe("UUID of the epic"),
 			name: z.string().optional().describe("Epic name"),
 			assignees: z
@@ -234,54 +217,37 @@ export function registerEpicTools(
 			state: z.string().optional().describe("UUID of the state"),
 			estimate_point: z.string().optional().describe("Estimate point value"),
 		},
-		async ({
-			project_id,
-			epic_id,
-			name,
-			assignees,
-			labels,
-			point,
-			description_html,
-			description_stripped,
-			priority,
-			start_date,
-			target_date,
-			sort_order,
-			is_draft,
-			external_source,
-			external_id,
-			state,
-			estimate_point,
-		}) =>
+		async (input) =>
 			toolResult(async () => {
-				const validatedPriority = validatePriorityStrict(priority);
+				const projectId = requireProjectId(ctx, input);
+				const validatedPriority = validatePriorityStrict(input.priority);
 				const workItem = await epics.updateWorkItem(
 					ctx.config,
 					ctx.workspaceSlug,
-					project_id,
-					epic_id,
+					projectId,
+					input.epic_id,
 					{
-						name,
-						assignees,
-						labels,
-						point,
-						description_html,
-						description_stripped,
+						name: input.name,
+						assignees: input.assignees,
+						labels: input.labels,
+						point: input.point,
+						description_html: input.description_html,
+						description_stripped: input.description_stripped,
 						priority: validatedPriority,
-						start_date,
-						target_date,
-						sort_order,
-						is_draft,
-						external_source,
-						external_id,
-						state,
-						estimate_point,
+						start_date: input.start_date,
+						target_date: input.target_date,
+						sort_order: input.sort_order,
+						is_draft: input.is_draft,
+						external_source: input.external_source,
+						external_id: input.external_id,
+						state: input.state,
+						estimate_point: input.estimate_point,
 					},
 				);
 				return epics.retrieve(
 					ctx.config,
 					ctx.workspaceSlug,
-					project_id,
+					projectId,
 					workItem.id ?? "",
 				);
 			}),
@@ -291,12 +257,18 @@ export function registerEpicTools(
 		"retrieve_epic",
 		"Retrieve an epic by ID.",
 		{
-			project_id: z.string().describe("UUID of the project"),
+			...projectIdField(ctx),
 			epic_id: z.string().describe("UUID of the epic"),
 		},
-		async ({ project_id, epic_id }) =>
+		async (input) =>
 			toolResult(() =>
-				epics.retrieve(ctx.config, ctx.workspaceSlug, project_id, epic_id, {}),
+				epics.retrieve(
+					ctx.config,
+					ctx.workspaceSlug,
+					requireProjectId(ctx, input),
+					input.epic_id,
+					{},
+				),
 			),
 	);
 
@@ -304,16 +276,16 @@ export function registerEpicTools(
 		"delete_epic",
 		"Delete an epic by ID.",
 		{
-			project_id: z.string().describe("UUID of the project"),
+			...projectIdField(ctx),
 			epic_id: z.string().describe("UUID of the epic"),
 		},
-		async ({ project_id, epic_id }) =>
+		async (input) =>
 			toolResult(() =>
 				epics.deleteWorkItem(
 					ctx.config,
 					ctx.workspaceSlug,
-					project_id,
-					epic_id,
+					requireProjectId(ctx, input),
+					input.epic_id,
 				),
 			),
 	);

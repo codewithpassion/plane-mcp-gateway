@@ -2,7 +2,7 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import type { PlaneAppContext } from "../client";
 import { workItemTypes } from "../resources/work_item_types";
-import { toolResult } from "./_helpers";
+import { projectIdField, requireProjectId, toolResult } from "./_helpers";
 
 export function registerWorkItemTypeTools(
 	server: McpServer,
@@ -12,19 +12,19 @@ export function registerWorkItemTypeTools(
 		"list_work_item_types",
 		"List all work item types in a project.",
 		{
-			project_id: z.string().describe("UUID of the project"),
+			...projectIdField(ctx),
 			params: z
 				.record(z.unknown())
 				.optional()
 				.describe("Optional query parameters as a dictionary"),
 		},
-		async ({ project_id, params }) =>
+		async (input) =>
 			toolResult(() =>
 				workItemTypes.list(
 					ctx.config,
 					ctx.workspaceSlug,
-					project_id,
-					params ?? null,
+					requireProjectId(ctx, input),
+					input.params ?? null,
 				),
 			),
 	);
@@ -33,7 +33,7 @@ export function registerWorkItemTypeTools(
 		"create_work_item_type",
 		"Create a new work item type.",
 		{
-			project_id: z.string().describe("UUID of the project"),
+			...projectIdField(ctx),
 			name: z.string().describe("Work item type name"),
 			description: z.string().optional().describe("Work item type description"),
 			project_ids: z
@@ -48,26 +48,22 @@ export function registerWorkItemTypeTools(
 				.describe("External system source name"),
 			external_id: z.string().optional().describe("External system identifier"),
 		},
-		async ({
-			project_id,
-			name,
-			description,
-			project_ids,
-			is_epic,
-			is_active,
-			external_source,
-			external_id,
-		}) =>
+		async (input) =>
 			toolResult(() =>
-				workItemTypes.create(ctx.config, ctx.workspaceSlug, project_id, {
-					name,
-					description,
-					project_ids,
-					is_epic,
-					is_active,
-					external_source,
-					external_id,
-				}),
+				workItemTypes.create(
+					ctx.config,
+					ctx.workspaceSlug,
+					requireProjectId(ctx, input),
+					{
+						name: input.name,
+						description: input.description,
+						project_ids: input.project_ids,
+						is_epic: input.is_epic,
+						is_active: input.is_active,
+						external_source: input.external_source,
+						external_id: input.external_id,
+					},
+				),
 			),
 	);
 
@@ -75,16 +71,16 @@ export function registerWorkItemTypeTools(
 		"retrieve_work_item_type",
 		"Retrieve a work item type by ID.",
 		{
-			project_id: z.string().describe("UUID of the project"),
+			...projectIdField(ctx),
 			work_item_type_id: z.string().describe("UUID of the work item type"),
 		},
-		async ({ project_id, work_item_type_id }) =>
+		async (input) =>
 			toolResult(() =>
 				workItemTypes.retrieve(
 					ctx.config,
 					ctx.workspaceSlug,
-					project_id,
-					work_item_type_id,
+					requireProjectId(ctx, input),
+					input.work_item_type_id,
 				),
 			),
 	);
@@ -93,7 +89,7 @@ export function registerWorkItemTypeTools(
 		"update_work_item_type",
 		"Update a work item type by ID.",
 		{
-			project_id: z.string().describe("UUID of the project"),
+			...projectIdField(ctx),
 			work_item_type_id: z.string().describe("UUID of the work item type"),
 			name: z.string().optional().describe("Work item type name"),
 			description: z.string().optional().describe("Work item type description"),
@@ -109,31 +105,21 @@ export function registerWorkItemTypeTools(
 				.describe("External system source name"),
 			external_id: z.string().optional().describe("External system identifier"),
 		},
-		async ({
-			project_id,
-			work_item_type_id,
-			name,
-			description,
-			project_ids,
-			is_epic,
-			is_active,
-			external_source,
-			external_id,
-		}) =>
+		async (input) =>
 			toolResult(() =>
 				workItemTypes.update(
 					ctx.config,
 					ctx.workspaceSlug,
-					project_id,
-					work_item_type_id,
+					requireProjectId(ctx, input),
+					input.work_item_type_id,
 					{
-						name,
-						description,
-						project_ids,
-						is_epic,
-						is_active,
-						external_source,
-						external_id,
+						name: input.name,
+						description: input.description,
+						project_ids: input.project_ids,
+						is_epic: input.is_epic,
+						is_active: input.is_active,
+						external_source: input.external_source,
+						external_id: input.external_id,
 					},
 				),
 			),
@@ -143,16 +129,16 @@ export function registerWorkItemTypeTools(
 		"delete_work_item_type",
 		"Delete a work item type by ID.",
 		{
-			project_id: z.string().describe("UUID of the project"),
+			...projectIdField(ctx),
 			work_item_type_id: z.string().describe("UUID of the work item type"),
 		},
-		async ({ project_id, work_item_type_id }) =>
+		async (input) =>
 			toolResult(() =>
 				workItemTypes.delete(
 					ctx.config,
 					ctx.workspaceSlug,
-					project_id,
-					work_item_type_id,
+					requireProjectId(ctx, input),
+					input.work_item_type_id,
 				),
 			),
 	);

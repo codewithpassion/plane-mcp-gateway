@@ -2,7 +2,7 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import type { PlaneAppContext } from "../client";
 import { workItems } from "../resources/work_items";
-import { toolResult } from "./_helpers";
+import { projectIdField, requireProjectId, toolResult } from "./_helpers";
 
 export function registerWorkItemLinkTools(
 	server: McpServer,
@@ -12,7 +12,7 @@ export function registerWorkItemLinkTools(
 		"list_work_item_links",
 		"List links for a work item.",
 		{
-			project_id: z.string().describe("UUID of the project"),
+			...projectIdField(ctx),
 			work_item_id: z.string().describe("UUID of the work item"),
 			params: z
 				.record(z.unknown())
@@ -24,7 +24,7 @@ export function registerWorkItemLinkTools(
 				const response = await workItems.listLinks(
 					ctx.config,
 					ctx.workspaceSlug,
-					args.project_id,
+					requireProjectId(ctx, args),
 					args.work_item_id,
 					args.params ?? null,
 				);
@@ -36,7 +36,7 @@ export function registerWorkItemLinkTools(
 		"retrieve_work_item_link",
 		"Retrieve a specific link for a work item.",
 		{
-			project_id: z.string().describe("UUID of the project"),
+			...projectIdField(ctx),
 			work_item_id: z.string().describe("UUID of the work item"),
 			link_id: z.string().describe("UUID of the link"),
 		},
@@ -45,7 +45,7 @@ export function registerWorkItemLinkTools(
 				workItems.retrieveLink(
 					ctx.config,
 					ctx.workspaceSlug,
-					args.project_id,
+					requireProjectId(ctx, args),
 					args.work_item_id,
 					args.link_id,
 				),
@@ -56,7 +56,7 @@ export function registerWorkItemLinkTools(
 		"create_work_item_link",
 		"Create a link for a work item.",
 		{
-			project_id: z.string().describe("UUID of the project"),
+			...projectIdField(ctx),
 			work_item_id: z.string().describe("UUID of the work item"),
 			url: z.string().describe("URL of the link"),
 		},
@@ -65,7 +65,7 @@ export function registerWorkItemLinkTools(
 				workItems.createLink(
 					ctx.config,
 					ctx.workspaceSlug,
-					args.project_id,
+					requireProjectId(ctx, args),
 					args.work_item_id,
 					{ url: args.url },
 				),
@@ -76,7 +76,7 @@ export function registerWorkItemLinkTools(
 		"update_work_item_link",
 		"Update a link for a work item.",
 		{
-			project_id: z.string().describe("UUID of the project"),
+			...projectIdField(ctx),
 			work_item_id: z.string().describe("UUID of the work item"),
 			link_id: z.string().describe("UUID of the link"),
 			url: z.string().optional().describe("Updated URL of the link"),
@@ -86,7 +86,7 @@ export function registerWorkItemLinkTools(
 				workItems.updateLink(
 					ctx.config,
 					ctx.workspaceSlug,
-					args.project_id,
+					requireProjectId(ctx, args),
 					args.work_item_id,
 					args.link_id,
 					{ url: args.url },
@@ -98,7 +98,7 @@ export function registerWorkItemLinkTools(
 		"delete_work_item_link",
 		"Delete a link for a work item.",
 		{
-			project_id: z.string().describe("UUID of the project"),
+			...projectIdField(ctx),
 			work_item_id: z.string().describe("UUID of the work item"),
 			link_id: z.string().describe("UUID of the link"),
 		},
@@ -107,7 +107,7 @@ export function registerWorkItemLinkTools(
 				workItems.deleteLink(
 					ctx.config,
 					ctx.workspaceSlug,
-					args.project_id,
+					requireProjectId(ctx, args),
 					args.work_item_id,
 					args.link_id,
 				),

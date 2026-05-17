@@ -8,155 +8,178 @@ import type {
 	ProjectFeature,
 	UpdateProjectBody,
 } from "../types/projects";
-import { toolResult } from "./_helpers";
+import { projectIdField, requireProjectId, toolResult } from "./_helpers";
 
 export function registerProjectTools(
 	server: McpServer,
 	ctx: PlaneAppContext,
 ): void {
-	server.tool(
-		"list_projects",
-		"List all projects in a workspace.",
-		{
-			cursor: z
-				.string()
-				.optional()
-				.describe("Pagination cursor for getting next set of results"),
-			per_page: z
-				.number()
-				.int()
-				.optional()
-				.describe("Number of results per page (1-100)"),
-			expand: z
-				.string()
-				.optional()
-				.describe(
-					"Comma-separated list of related fields to expand in response",
-				),
-			fields: z
-				.string()
-				.optional()
-				.describe("Comma-separated list of fields to include in response"),
-			order_by: z
-				.string()
-				.optional()
-				.describe(
-					"Field to order results by. Prefix with '-' for descending order",
-				),
-		},
-		async (params) =>
-			toolResult(async () => {
-				const queryParams: PaginatedQueryParams = {
-					cursor: params.cursor,
-					per_page: params.per_page,
-					expand: params.expand,
-					fields: params.fields,
-					order_by: params.order_by,
-				};
-				const response = await projects.list(
-					ctx.config,
-					ctx.workspaceSlug,
-					queryParams,
-				);
-				return response.results;
-			}),
-	);
+	const pinned = Boolean(ctx.projectId);
 
-	server.tool(
-		"create_project",
-		"Create a new project.",
-		{
-			name: z.string().describe("Project name"),
-			identifier: z
-				.string()
-				.describe('Project identifier (e.g., "MP" for "My Project")'),
-			description: z.string().optional().describe("Project description"),
-			project_lead: z
-				.string()
-				.optional()
-				.describe("UUID of the project lead user"),
-			default_assignee: z
-				.string()
-				.optional()
-				.describe("UUID of the default assignee user"),
-			emoji: z.string().optional().describe("Emoji for the project"),
-			cover_image: z
-				.string()
-				.optional()
-				.describe("Cover image URL or asset ID"),
-			module_view: z.boolean().optional().describe("Enable module view"),
-			cycle_view: z.boolean().optional().describe("Enable cycle view"),
-			issue_views_view: z
-				.boolean()
-				.optional()
-				.describe("Enable issue views view"),
-			page_view: z.boolean().optional().describe("Enable page view"),
-			intake_view: z.boolean().optional().describe("Enable intake view"),
-			guest_view_all_features: z
-				.boolean()
-				.optional()
-				.describe("Allow guests to view all features"),
-			archive_in: z
-				.number()
-				.int()
-				.optional()
-				.describe("Days until auto-archive"),
-			close_in: z.number().int().optional().describe("Days until auto-close"),
-			timezone: z.string().optional().describe("Project timezone"),
-			external_source: z
-				.string()
-				.optional()
-				.describe("External system source name"),
-			external_id: z.string().optional().describe("External system identifier"),
-			is_issue_type_enabled: z
-				.boolean()
-				.optional()
-				.describe("Enable issue types"),
-		},
-		async (params) =>
-			toolResult(() => {
-				const data: CreateProjectBody = {
-					name: params.name,
-					identifier: params.identifier,
-					description: params.description,
-					project_lead: params.project_lead,
-					default_assignee: params.default_assignee,
-					emoji: params.emoji,
-					cover_image: params.cover_image,
-					module_view: params.module_view,
-					cycle_view: params.cycle_view,
-					issue_views_view: params.issue_views_view,
-					page_view: params.page_view,
-					intake_view: params.intake_view,
-					guest_view_all_features: params.guest_view_all_features,
-					archive_in: params.archive_in,
-					close_in: params.close_in,
-					timezone: params.timezone,
-					external_source: params.external_source,
-					external_id: params.external_id,
-					is_issue_type_enabled: params.is_issue_type_enabled,
-				};
-				return projects.create(ctx.config, ctx.workspaceSlug, data);
-			}),
-	);
+	if (!pinned) {
+		server.tool(
+			"list_projects",
+			"List all projects in a workspace.",
+			{
+				cursor: z
+					.string()
+					.optional()
+					.describe("Pagination cursor for getting next set of results"),
+				per_page: z
+					.number()
+					.int()
+					.optional()
+					.describe("Number of results per page (1-100)"),
+				expand: z
+					.string()
+					.optional()
+					.describe(
+						"Comma-separated list of related fields to expand in response",
+					),
+				fields: z
+					.string()
+					.optional()
+					.describe("Comma-separated list of fields to include in response"),
+				order_by: z
+					.string()
+					.optional()
+					.describe(
+						"Field to order results by. Prefix with '-' for descending order",
+					),
+			},
+			async (params) =>
+				toolResult(async () => {
+					const queryParams: PaginatedQueryParams = {
+						cursor: params.cursor,
+						per_page: params.per_page,
+						expand: params.expand,
+						fields: params.fields,
+						order_by: params.order_by,
+					};
+					const response = await projects.list(
+						ctx.config,
+						ctx.workspaceSlug,
+						queryParams,
+					);
+					return response.results;
+				}),
+		);
+
+		server.tool(
+			"create_project",
+			"Create a new project.",
+			{
+				name: z.string().describe("Project name"),
+				identifier: z
+					.string()
+					.describe('Project identifier (e.g., "MP" for "My Project")'),
+				description: z.string().optional().describe("Project description"),
+				project_lead: z
+					.string()
+					.optional()
+					.describe("UUID of the project lead user"),
+				default_assignee: z
+					.string()
+					.optional()
+					.describe("UUID of the default assignee user"),
+				emoji: z.string().optional().describe("Emoji for the project"),
+				cover_image: z
+					.string()
+					.optional()
+					.describe("Cover image URL or asset ID"),
+				module_view: z.boolean().optional().describe("Enable module view"),
+				cycle_view: z.boolean().optional().describe("Enable cycle view"),
+				issue_views_view: z
+					.boolean()
+					.optional()
+					.describe("Enable issue views view"),
+				page_view: z.boolean().optional().describe("Enable page view"),
+				intake_view: z.boolean().optional().describe("Enable intake view"),
+				guest_view_all_features: z
+					.boolean()
+					.optional()
+					.describe("Allow guests to view all features"),
+				archive_in: z
+					.number()
+					.int()
+					.optional()
+					.describe("Days until auto-archive"),
+				close_in: z.number().int().optional().describe("Days until auto-close"),
+				timezone: z.string().optional().describe("Project timezone"),
+				external_source: z
+					.string()
+					.optional()
+					.describe("External system source name"),
+				external_id: z
+					.string()
+					.optional()
+					.describe("External system identifier"),
+				is_issue_type_enabled: z
+					.boolean()
+					.optional()
+					.describe("Enable issue types"),
+			},
+			async (params) =>
+				toolResult(() => {
+					const data: CreateProjectBody = {
+						name: params.name,
+						identifier: params.identifier,
+						description: params.description,
+						project_lead: params.project_lead,
+						default_assignee: params.default_assignee,
+						emoji: params.emoji,
+						cover_image: params.cover_image,
+						module_view: params.module_view,
+						cycle_view: params.cycle_view,
+						issue_views_view: params.issue_views_view,
+						page_view: params.page_view,
+						intake_view: params.intake_view,
+						guest_view_all_features: params.guest_view_all_features,
+						archive_in: params.archive_in,
+						close_in: params.close_in,
+						timezone: params.timezone,
+						external_source: params.external_source,
+						external_id: params.external_id,
+						is_issue_type_enabled: params.is_issue_type_enabled,
+					};
+					return projects.create(ctx.config, ctx.workspaceSlug, data);
+				}),
+		);
+
+		server.tool(
+			"delete_project",
+			"Delete a project by ID.",
+			{ ...projectIdField(ctx) },
+			async (params) =>
+				toolResult(() =>
+					projects.delete(
+						ctx.config,
+						ctx.workspaceSlug,
+						requireProjectId(ctx, params),
+					),
+				),
+		);
+	}
 
 	server.tool(
 		"retrieve_project",
-		"Retrieve a project by ID.",
-		{
-			project_id: z.string().describe("UUID of the project"),
-		},
+		pinned ? "Retrieve the configured project." : "Retrieve a project by ID.",
+		{ ...projectIdField(ctx) },
 		async (params) =>
 			toolResult(() =>
-				projects.retrieve(ctx.config, ctx.workspaceSlug, params.project_id),
+				projects.retrieve(
+					ctx.config,
+					ctx.workspaceSlug,
+					requireProjectId(ctx, params),
+				),
 			),
 	);
 
 	server.tool(
 		"update_project",
-		"Update a project by ID.",
+		pinned ? "Update the configured project." : "Update a project by ID.",
 		{
-			project_id: z.string().describe("UUID of the project"),
+			...projectIdField(ctx),
 			name: z.string().optional().describe("Project name"),
 			description: z.string().optional().describe("Project description"),
 			project_lead: z
@@ -240,36 +263,22 @@ export function registerProjectTools(
 				return projects.update(
 					ctx.config,
 					ctx.workspaceSlug,
-					params.project_id,
+					requireProjectId(ctx, params),
 					data,
 				);
 			}),
 	);
 
 	server.tool(
-		"delete_project",
-		"Delete a project by ID.",
-		{
-			project_id: z.string().describe("UUID of the project"),
-		},
-		async (params) =>
-			toolResult(() =>
-				projects.delete(ctx.config, ctx.workspaceSlug, params.project_id),
-			),
-	);
-
-	server.tool(
 		"get_project_worklog_summary",
 		"Get work log summary for a project.",
-		{
-			project_id: z.string().describe("UUID of the project"),
-		},
+		{ ...projectIdField(ctx) },
 		async (params) =>
 			toolResult(() =>
 				projects.getWorklogSummary(
 					ctx.config,
 					ctx.workspaceSlug,
-					params.project_id,
+					requireProjectId(ctx, params),
 				),
 			),
 	);
@@ -278,7 +287,7 @@ export function registerProjectTools(
 		"get_project_members",
 		"Get all members of a project.",
 		{
-			project_id: z.string().describe("UUID of the project"),
+			...projectIdField(ctx),
 			params: z
 				.record(z.unknown())
 				.optional()
@@ -289,7 +298,7 @@ export function registerProjectTools(
 				projects.getMembers(
 					ctx.config,
 					ctx.workspaceSlug,
-					params.project_id,
+					requireProjectId(ctx, params),
 					params.params ?? null,
 				),
 			),
@@ -298,12 +307,14 @@ export function registerProjectTools(
 	server.tool(
 		"get_project_features",
 		"Get features of a project.",
-		{
-			project_id: z.string().describe("UUID of the project"),
-		},
+		{ ...projectIdField(ctx) },
 		async (params) =>
 			toolResult(() =>
-				projects.getFeatures(ctx.config, ctx.workspaceSlug, params.project_id),
+				projects.getFeatures(
+					ctx.config,
+					ctx.workspaceSlug,
+					requireProjectId(ctx, params),
+				),
 			),
 	);
 
@@ -311,7 +322,7 @@ export function registerProjectTools(
 		"update_project_features",
 		"Update features of a project.",
 		{
-			project_id: z.string().describe("UUID of the project"),
+			...projectIdField(ctx),
 			epics: z.boolean().optional().describe("Enable/disable epics feature"),
 			modules: z
 				.boolean()
@@ -343,7 +354,7 @@ export function registerProjectTools(
 				return projects.updateFeatures(
 					ctx.config,
 					ctx.workspaceSlug,
-					params.project_id,
+					requireProjectId(ctx, params),
 					data,
 				);
 			}),

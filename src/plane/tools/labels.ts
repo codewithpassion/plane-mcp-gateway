@@ -2,7 +2,7 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import type { PlaneAppContext } from "../client";
 import { labels } from "../resources/labels";
-import { toolResult } from "./_helpers";
+import { projectIdField, requireProjectId, toolResult } from "./_helpers";
 
 export function registerLabelTools(
 	server: McpServer,
@@ -12,19 +12,19 @@ export function registerLabelTools(
 		"list_labels",
 		"List all labels in a project.",
 		{
-			project_id: z.string().describe("UUID of the project"),
+			...projectIdField(ctx),
 			params: z
 				.record(z.unknown())
 				.optional()
 				.describe("Optional query parameters as a dictionary"),
 		},
-		async ({ project_id, params }) =>
+		async (input) =>
 			toolResult(async () => {
 				const response = await labels.list(
 					ctx.config,
 					ctx.workspaceSlug,
-					project_id,
-					params ?? null,
+					requireProjectId(ctx, input),
+					input.params ?? null,
 				);
 				return response.results;
 			}),
@@ -34,7 +34,7 @@ export function registerLabelTools(
 		"create_label",
 		"Create a new label.",
 		{
-			project_id: z.string().describe("UUID of the project"),
+			...projectIdField(ctx),
 			name: z.string().describe("Label name"),
 			color: z.string().optional().describe("Label color (hex color code)"),
 			description: z.string().optional().describe("Label description"),
@@ -49,26 +49,22 @@ export function registerLabelTools(
 				.describe("External system source name"),
 			external_id: z.string().optional().describe("External system identifier"),
 		},
-		async ({
-			project_id,
-			name,
-			color,
-			description,
-			parent,
-			sort_order,
-			external_source,
-			external_id,
-		}) =>
+		async (input) =>
 			toolResult(() =>
-				labels.create(ctx.config, ctx.workspaceSlug, project_id, {
-					name,
-					color,
-					description,
-					parent,
-					sort_order,
-					external_source,
-					external_id,
-				}),
+				labels.create(
+					ctx.config,
+					ctx.workspaceSlug,
+					requireProjectId(ctx, input),
+					{
+						name: input.name,
+						color: input.color,
+						description: input.description,
+						parent: input.parent,
+						sort_order: input.sort_order,
+						external_source: input.external_source,
+						external_id: input.external_id,
+					},
+				),
 			),
 	);
 
@@ -76,12 +72,17 @@ export function registerLabelTools(
 		"retrieve_label",
 		"Retrieve a label by ID.",
 		{
-			project_id: z.string().describe("UUID of the project"),
+			...projectIdField(ctx),
 			label_id: z.string().describe("UUID of the label"),
 		},
-		async ({ project_id, label_id }) =>
+		async (input) =>
 			toolResult(() =>
-				labels.retrieve(ctx.config, ctx.workspaceSlug, project_id, label_id),
+				labels.retrieve(
+					ctx.config,
+					ctx.workspaceSlug,
+					requireProjectId(ctx, input),
+					input.label_id,
+				),
 			),
 	);
 
@@ -89,7 +90,7 @@ export function registerLabelTools(
 		"update_label",
 		"Update a label by ID.",
 		{
-			project_id: z.string().describe("UUID of the project"),
+			...projectIdField(ctx),
 			label_id: z.string().describe("UUID of the label"),
 			name: z.string().optional().describe("Label name"),
 			color: z.string().optional().describe("Label color (hex color code)"),
@@ -105,27 +106,23 @@ export function registerLabelTools(
 				.describe("External system source name"),
 			external_id: z.string().optional().describe("External system identifier"),
 		},
-		async ({
-			project_id,
-			label_id,
-			name,
-			color,
-			description,
-			parent,
-			sort_order,
-			external_source,
-			external_id,
-		}) =>
+		async (input) =>
 			toolResult(() =>
-				labels.update(ctx.config, ctx.workspaceSlug, project_id, label_id, {
-					name,
-					color,
-					description,
-					parent,
-					sort_order,
-					external_source,
-					external_id,
-				}),
+				labels.update(
+					ctx.config,
+					ctx.workspaceSlug,
+					requireProjectId(ctx, input),
+					input.label_id,
+					{
+						name: input.name,
+						color: input.color,
+						description: input.description,
+						parent: input.parent,
+						sort_order: input.sort_order,
+						external_source: input.external_source,
+						external_id: input.external_id,
+					},
+				),
 			),
 	);
 
@@ -133,12 +130,17 @@ export function registerLabelTools(
 		"delete_label",
 		"Delete a label by ID.",
 		{
-			project_id: z.string().describe("UUID of the project"),
+			...projectIdField(ctx),
 			label_id: z.string().describe("UUID of the label"),
 		},
-		async ({ project_id, label_id }) =>
+		async (input) =>
 			toolResult(() =>
-				labels.delete(ctx.config, ctx.workspaceSlug, project_id, label_id),
+				labels.delete(
+					ctx.config,
+					ctx.workspaceSlug,
+					requireProjectId(ctx, input),
+					input.label_id,
+				),
 			),
 	);
 }

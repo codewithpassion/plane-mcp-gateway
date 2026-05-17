@@ -1,4 +1,42 @@
+import { z } from "zod";
+import type { PlaneAppContext } from "../client";
 import { PlaneError } from "../errors";
+
+/**
+ * Build the zod shape fragment for a project_id parameter.
+ * When the config is pinned to a project, returns an empty fragment
+ * so the parameter disappears from the tool's schema. Otherwise
+ * returns { project_id: z.string()... } with the given description / optionality.
+ */
+export function projectIdField(
+	ctx: PlaneAppContext,
+	options: { optional?: boolean; description?: string } = {},
+): Record<string, z.ZodTypeAny> {
+	if (ctx.projectId) return {};
+	const desc = options.description ?? "UUID of the project";
+	const field = options.optional
+		? z.string().optional().describe(desc)
+		: z.string().describe(desc);
+	return { project_id: field };
+}
+
+export function resolveProjectId(
+	ctx: PlaneAppContext,
+	params: Record<string, unknown>,
+): string | undefined {
+	if (ctx.projectId) return ctx.projectId;
+	const fromParams = params.project_id;
+	return typeof fromParams === "string" ? fromParams : undefined;
+}
+
+export function requireProjectId(
+	ctx: PlaneAppContext,
+	params: Record<string, unknown>,
+): string {
+	const id = resolveProjectId(ctx, params);
+	if (!id) throw new Error("project_id is required");
+	return id;
+}
 
 export interface ToolTextResult {
 	content: { type: "text"; text: string }[];

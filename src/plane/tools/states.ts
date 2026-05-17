@@ -3,7 +3,7 @@ import { z } from "zod";
 import type { PlaneAppContext } from "../client";
 import { states } from "../resources/states";
 import type { StateGroupEnum } from "../types/common";
-import { toolResult } from "./_helpers";
+import { projectIdField, requireProjectId, toolResult } from "./_helpers";
 
 const STATE_GROUPS: readonly StateGroupEnum[] = [
 	"backlog",
@@ -29,19 +29,19 @@ export function registerStateTools(
 		"list_states",
 		"List all states in a project.",
 		{
-			project_id: z.string().describe("UUID of the project"),
+			...projectIdField(ctx),
 			params: z
 				.record(z.unknown())
 				.optional()
 				.describe("Optional query parameters as a dictionary"),
 		},
-		async ({ project_id, params }) =>
+		async (input) =>
 			toolResult(async () => {
 				const response = await states.list(
 					ctx.config,
 					ctx.workspaceSlug,
-					project_id,
-					params ?? null,
+					requireProjectId(ctx, input),
+					input.params ?? null,
 				);
 				return response.results;
 			}),
@@ -51,7 +51,7 @@ export function registerStateTools(
 		"create_state",
 		"Create a new state.",
 		{
-			project_id: z.string().describe("UUID of the project"),
+			...projectIdField(ctx),
 			name: z.string().describe("State name"),
 			color: z.string().describe("State color (hex color code)"),
 			description: z.string().optional().describe("State description"),
@@ -76,30 +76,24 @@ export function registerStateTools(
 				.describe("External system source name"),
 			external_id: z.string().optional().describe("External system identifier"),
 		},
-		async ({
-			project_id,
-			name,
-			color,
-			description,
-			sequence,
-			group,
-			is_triage,
-			default: isDefault,
-			external_source,
-			external_id,
-		}) =>
+		async (input) =>
 			toolResult(() =>
-				states.create(ctx.config, ctx.workspaceSlug, project_id, {
-					name,
-					color,
-					description,
-					sequence,
-					group: validateGroup(group),
-					is_triage,
-					default: isDefault,
-					external_source,
-					external_id,
-				}),
+				states.create(
+					ctx.config,
+					ctx.workspaceSlug,
+					requireProjectId(ctx, input),
+					{
+						name: input.name,
+						color: input.color,
+						description: input.description,
+						sequence: input.sequence,
+						group: validateGroup(input.group),
+						is_triage: input.is_triage,
+						default: input.default,
+						external_source: input.external_source,
+						external_id: input.external_id,
+					},
+				),
 			),
 	);
 
@@ -107,12 +101,17 @@ export function registerStateTools(
 		"retrieve_state",
 		"Retrieve a state by ID.",
 		{
-			project_id: z.string().describe("UUID of the project"),
+			...projectIdField(ctx),
 			state_id: z.string().describe("UUID of the state"),
 		},
-		async ({ project_id, state_id }) =>
+		async (input) =>
 			toolResult(() =>
-				states.retrieve(ctx.config, ctx.workspaceSlug, project_id, state_id),
+				states.retrieve(
+					ctx.config,
+					ctx.workspaceSlug,
+					requireProjectId(ctx, input),
+					input.state_id,
+				),
 			),
 	);
 
@@ -120,7 +119,7 @@ export function registerStateTools(
 		"update_state",
 		"Update a state by ID.",
 		{
-			project_id: z.string().describe("UUID of the project"),
+			...projectIdField(ctx),
 			state_id: z.string().describe("UUID of the state"),
 			name: z.string().optional().describe("State name"),
 			color: z.string().optional().describe("State color (hex color code)"),
@@ -146,31 +145,25 @@ export function registerStateTools(
 				.describe("External system source name"),
 			external_id: z.string().optional().describe("External system identifier"),
 		},
-		async ({
-			project_id,
-			state_id,
-			name,
-			color,
-			description,
-			sequence,
-			group,
-			is_triage,
-			default: isDefault,
-			external_source,
-			external_id,
-		}) =>
+		async (input) =>
 			toolResult(() =>
-				states.update(ctx.config, ctx.workspaceSlug, project_id, state_id, {
-					name,
-					color,
-					description,
-					sequence,
-					group: validateGroup(group),
-					is_triage,
-					default: isDefault,
-					external_source,
-					external_id,
-				}),
+				states.update(
+					ctx.config,
+					ctx.workspaceSlug,
+					requireProjectId(ctx, input),
+					input.state_id,
+					{
+						name: input.name,
+						color: input.color,
+						description: input.description,
+						sequence: input.sequence,
+						group: validateGroup(input.group),
+						is_triage: input.is_triage,
+						default: input.default,
+						external_source: input.external_source,
+						external_id: input.external_id,
+					},
+				),
 			),
 	);
 
@@ -178,12 +171,17 @@ export function registerStateTools(
 		"delete_state",
 		"Delete a state by ID.",
 		{
-			project_id: z.string().describe("UUID of the project"),
+			...projectIdField(ctx),
 			state_id: z.string().describe("UUID of the state"),
 		},
-		async ({ project_id, state_id }) =>
+		async (input) =>
 			toolResult(() =>
-				states.delete(ctx.config, ctx.workspaceSlug, project_id, state_id),
+				states.delete(
+					ctx.config,
+					ctx.workspaceSlug,
+					requireProjectId(ctx, input),
+					input.state_id,
+				),
 			),
 	);
 }

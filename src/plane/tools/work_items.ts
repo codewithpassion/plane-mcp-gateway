@@ -8,7 +8,13 @@ import type {
 	CreateWorkItemBody,
 	UpdateWorkItemBody,
 } from "../types/work_items";
-import { stripNullish, toolResult } from "./_helpers";
+import {
+	projectIdField,
+	requireProjectId,
+	resolveProjectId,
+	stripNullish,
+	toolResult,
+} from "./_helpers";
 
 function _buildAdvancedSearchFilters(args: {
 	assignee_ids?: string[];
@@ -52,12 +58,11 @@ export function registerWorkItemTools(
 		"list_work_items",
 		"List work items in a project or search across the workspace. When any filter parameter is provided (assignee_ids, state_ids, state_groups, priorities, label_ids, type_ids, cycle_ids, module_ids, is_archived, created_by_ids, or query), this uses the advanced search endpoint which supports powerful filtering. Otherwise it uses the standard list endpoint.",
 		{
-			project_id: z
-				.string()
-				.optional()
-				.describe(
+			...projectIdField(ctx, {
+				optional: true,
+				description:
 					"UUID of the project. Required when no filters are provided. Optional when using filters (omit for workspace-wide search).",
-				),
+			}),
 			query: z
 				.string()
 				.optional()
@@ -161,6 +166,7 @@ export function registerWorkItemTools(
 		},
 		async (params) =>
 			toolResult(async () => {
+				const projectId = resolveProjectId(ctx, params);
 				const filters = _buildAdvancedSearchFilters({
 					assignee_ids: params.assignee_ids,
 					state_ids: params.state_ids,
@@ -179,13 +185,13 @@ export function registerWorkItemTools(
 						query: params.query,
 						filters,
 						limit: params.limit,
-						project_id: params.project_id,
+						project_id: projectId,
 						workspace_search: params.workspace_search ? true : null,
 					}) as AdvancedSearchBody;
 					return workItems.advancedSearch(ctx.config, ctx.workspaceSlug, body);
 				}
 
-				if (params.project_id === undefined) {
+				if (projectId === undefined) {
 					throw new Error(
 						"project_id is required when no filters are provided",
 					);
@@ -204,7 +210,7 @@ export function registerWorkItemTools(
 				const response = await workItems.list(
 					ctx.config,
 					ctx.workspaceSlug,
-					params.project_id,
+					projectId,
 					queryParams,
 				);
 				return response.results;
@@ -215,7 +221,7 @@ export function registerWorkItemTools(
 		"create_work_item",
 		"Create a new work item.",
 		{
-			project_id: z.string().describe("UUID of the project"),
+			...projectIdField(ctx),
 			name: z.string().describe("Work item name (required)"),
 			assignees: z
 				.array(z.string())
@@ -287,7 +293,7 @@ export function registerWorkItemTools(
 				return workItems.create(
 					ctx.config,
 					ctx.workspaceSlug,
-					params.project_id,
+					requireProjectId(ctx, params),
 					data,
 				);
 			}),
@@ -297,7 +303,7 @@ export function registerWorkItemTools(
 		"retrieve_work_item",
 		"Retrieve a work item by ID.",
 		{
-			project_id: z.string().describe("UUID of the project"),
+			...projectIdField(ctx),
 			work_item_id: z.string().describe("UUID of the work item"),
 			expand: z
 				.string()
@@ -329,7 +335,7 @@ export function registerWorkItemTools(
 				workItems.retrieve(
 					ctx.config,
 					ctx.workspaceSlug,
-					params.project_id,
+					requireProjectId(ctx, params),
 					params.work_item_id,
 					stripNullish({
 						expand: params.expand,
@@ -400,7 +406,7 @@ export function registerWorkItemTools(
 		"update_work_item",
 		"Update a work item by ID.",
 		{
-			project_id: z.string().describe("UUID of the project"),
+			...projectIdField(ctx),
 			work_item_id: z.string().describe("UUID of the work item"),
 			name: z.string().optional().describe("Work item name"),
 			assignees: z
@@ -473,7 +479,7 @@ export function registerWorkItemTools(
 				return workItems.update(
 					ctx.config,
 					ctx.workspaceSlug,
-					params.project_id,
+					requireProjectId(ctx, params),
 					params.work_item_id,
 					data,
 				);
@@ -484,7 +490,7 @@ export function registerWorkItemTools(
 		"delete_work_item",
 		"Delete a work item by ID.",
 		{
-			project_id: z.string().describe("UUID of the project"),
+			...projectIdField(ctx),
 			work_item_id: z.string().describe("UUID of the work item"),
 		},
 		async (params) =>
@@ -492,7 +498,7 @@ export function registerWorkItemTools(
 				workItems.delete(
 					ctx.config,
 					ctx.workspaceSlug,
-					params.project_id,
+					requireProjectId(ctx, params),
 					params.work_item_id,
 				),
 			),

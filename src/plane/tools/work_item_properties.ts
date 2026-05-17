@@ -7,7 +7,7 @@ import type {
 	CreateWorkItemPropertyOptionBody,
 	PropertySettings,
 } from "../types/work_item_properties";
-import { toolResult } from "./_helpers";
+import { projectIdField, requireProjectId, toolResult } from "./_helpers";
 
 const PROPERTY_TYPES: readonly PropertyTypeEnum[] = [
 	"TEXT",
@@ -72,21 +72,21 @@ export function registerWorkItemPropertyTools(
 		"list_work_item_properties",
 		"List work item properties for a work item type.",
 		{
-			project_id: z.string().describe("UUID of the project"),
+			...projectIdField(ctx),
 			type_id: z.string().describe("UUID of the work item type"),
 			params: z
 				.record(z.unknown())
 				.optional()
 				.describe("Optional query parameters as a dictionary"),
 		},
-		async ({ project_id, type_id, params }) =>
+		async (input) =>
 			toolResult(() =>
 				workItemProperties.list(
 					ctx.config,
 					ctx.workspaceSlug,
-					project_id,
-					type_id,
-					params ?? null,
+					requireProjectId(ctx, input),
+					input.type_id,
+					input.params ?? null,
 				),
 			),
 	);
@@ -95,7 +95,7 @@ export function registerWorkItemPropertyTools(
 		"create_work_item_property",
 		"Create a new work item property.",
 		{
-			project_id: z.string().describe("UUID of the project"),
+			...projectIdField(ctx),
 			type_id: z.string().describe("UUID of the work item type"),
 			display_name: z.string().describe("Display name for the property"),
 			property_type: z
@@ -146,43 +146,27 @@ export function registerWorkItemPropertyTools(
 				.optional()
 				.describe("List of option dictionaries for OPTION properties"),
 		},
-		async ({
-			project_id,
-			type_id,
-			display_name,
-			property_type,
-			relation_type,
-			description,
-			is_required,
-			default_value,
-			settings,
-			is_active,
-			is_multi,
-			validation_rules,
-			external_source,
-			external_id,
-			options,
-		}) =>
+		async (input) =>
 			toolResult(() =>
 				workItemProperties.create(
 					ctx.config,
 					ctx.workspaceSlug,
-					project_id,
-					type_id,
+					requireProjectId(ctx, input),
+					input.type_id,
 					{
-						display_name,
-						property_type: asPropertyType(property_type),
-						relation_type: asRelationType(relation_type),
-						description,
-						is_required,
-						default_value,
-						settings: processSettings(property_type, settings),
-						is_active,
-						is_multi,
-						validation_rules,
-						external_source,
-						external_id,
-						options: processOptions(options),
+						display_name: input.display_name,
+						property_type: asPropertyType(input.property_type),
+						relation_type: asRelationType(input.relation_type),
+						description: input.description,
+						is_required: input.is_required,
+						default_value: input.default_value,
+						settings: processSettings(input.property_type, input.settings),
+						is_active: input.is_active,
+						is_multi: input.is_multi,
+						validation_rules: input.validation_rules,
+						external_source: input.external_source,
+						external_id: input.external_id,
+						options: processOptions(input.options),
 					},
 				),
 			),
@@ -192,18 +176,18 @@ export function registerWorkItemPropertyTools(
 		"retrieve_work_item_property",
 		"Retrieve a work item property by ID.",
 		{
-			project_id: z.string().describe("UUID of the project"),
+			...projectIdField(ctx),
 			type_id: z.string().describe("UUID of the work item type"),
 			work_item_property_id: z.string().describe("UUID of the property"),
 		},
-		async ({ project_id, type_id, work_item_property_id }) =>
+		async (input) =>
 			toolResult(() =>
 				workItemProperties.retrieve(
 					ctx.config,
 					ctx.workspaceSlug,
-					project_id,
-					type_id,
-					work_item_property_id,
+					requireProjectId(ctx, input),
+					input.type_id,
+					input.work_item_property_id,
 				),
 			),
 	);
@@ -212,7 +196,7 @@ export function registerWorkItemPropertyTools(
 		"update_work_item_property",
 		"Update a work item property by ID.",
 		{
-			project_id: z.string().describe("UUID of the project"),
+			...projectIdField(ctx),
 			type_id: z.string().describe("UUID of the work item type"),
 			work_item_property_id: z.string().describe("UUID of the property"),
 			display_name: z
@@ -264,48 +248,32 @@ export function registerWorkItemPropertyTools(
 				.describe("External system source name"),
 			external_id: z.string().optional().describe("External system identifier"),
 		},
-		async ({
-			project_id,
-			type_id,
-			work_item_property_id,
-			display_name,
-			property_type,
-			relation_type,
-			description,
-			is_required,
-			default_value,
-			settings,
-			is_active,
-			is_multi,
-			validation_rules,
-			external_source,
-			external_id,
-		}) =>
+		async (input) =>
 			toolResult(() =>
 				workItemProperties.update(
 					ctx.config,
 					ctx.workspaceSlug,
-					project_id,
-					type_id,
-					work_item_property_id,
+					requireProjectId(ctx, input),
+					input.type_id,
+					input.work_item_property_id,
 					{
-						display_name,
-						property_type: property_type
-							? asPropertyType(property_type)
+						display_name: input.display_name,
+						property_type: input.property_type
+							? asPropertyType(input.property_type)
 							: undefined,
-						relation_type: asRelationType(relation_type),
-						description,
-						is_required,
-						default_value,
+						relation_type: asRelationType(input.relation_type),
+						description: input.description,
+						is_required: input.is_required,
+						default_value: input.default_value,
 						settings:
-							property_type !== undefined
-								? processSettings(property_type, settings)
+							input.property_type !== undefined
+								? processSettings(input.property_type, input.settings)
 								: undefined,
-						is_active,
-						is_multi,
-						validation_rules,
-						external_source,
-						external_id,
+						is_active: input.is_active,
+						is_multi: input.is_multi,
+						validation_rules: input.validation_rules,
+						external_source: input.external_source,
+						external_id: input.external_id,
 					},
 				),
 			),
@@ -315,18 +283,18 @@ export function registerWorkItemPropertyTools(
 		"delete_work_item_property",
 		"Delete a work item property by ID.",
 		{
-			project_id: z.string().describe("UUID of the project"),
+			...projectIdField(ctx),
 			type_id: z.string().describe("UUID of the work item type"),
 			work_item_property_id: z.string().describe("UUID of the property"),
 		},
-		async ({ project_id, type_id, work_item_property_id }) =>
+		async (input) =>
 			toolResult(() =>
 				workItemProperties.delete(
 					ctx.config,
 					ctx.workspaceSlug,
-					project_id,
-					type_id,
-					work_item_property_id,
+					requireProjectId(ctx, input),
+					input.type_id,
+					input.work_item_property_id,
 				),
 			),
 	);

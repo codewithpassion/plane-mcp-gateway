@@ -2,7 +2,7 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import type { PlaneAppContext } from "../client";
 import { intake } from "../resources/intake";
-import { toolResult } from "./_helpers";
+import { projectIdField, requireProjectId, toolResult } from "./_helpers";
 
 export function registerIntakeTools(
 	server: McpServer,
@@ -12,7 +12,7 @@ export function registerIntakeTools(
 		"list_intake_work_items",
 		"List all intake work items in a project.",
 		{
-			project_id: z.string().describe("UUID of the project"),
+			...projectIdField(ctx),
 			params: z
 				.record(z.unknown())
 				.optional()
@@ -20,13 +20,13 @@ export function registerIntakeTools(
 					"Optional query parameters as a dictionary (e.g., per_page, cursor)",
 				),
 		},
-		async ({ project_id, params }) =>
+		async (input) =>
 			toolResult(async () => {
 				const response = await intake.list(
 					ctx.config,
 					ctx.workspaceSlug,
-					project_id,
-					params ?? null,
+					requireProjectId(ctx, input),
+					input.params ?? null,
 				);
 				return response.results;
 			}),
@@ -36,14 +36,19 @@ export function registerIntakeTools(
 		"create_intake_work_item",
 		"Create a new intake work item in a project.",
 		{
-			project_id: z.string().describe("UUID of the project"),
+			...projectIdField(ctx),
 			data: z
 				.record(z.unknown())
 				.describe("Intake work item data as a dictionary"),
 		},
-		async ({ project_id, data }) =>
+		async (input) =>
 			toolResult(() =>
-				intake.create(ctx.config, ctx.workspaceSlug, project_id, data),
+				intake.create(
+					ctx.config,
+					ctx.workspaceSlug,
+					requireProjectId(ctx, input),
+					input.data,
+				),
 			),
 	);
 
@@ -51,7 +56,7 @@ export function registerIntakeTools(
 		"retrieve_intake_work_item",
 		"Retrieve an intake work item by work item ID.",
 		{
-			project_id: z.string().describe("UUID of the project"),
+			...projectIdField(ctx),
 			work_item_id: z
 				.string()
 				.describe(
@@ -64,14 +69,14 @@ export function registerIntakeTools(
 					"Optional query parameters as a dictionary (e.g., expand, fields)",
 				),
 		},
-		async ({ project_id, work_item_id, params }) =>
+		async (input) =>
 			toolResult(() =>
 				intake.retrieve(
 					ctx.config,
 					ctx.workspaceSlug,
-					project_id,
-					work_item_id,
-					params ?? null,
+					requireProjectId(ctx, input),
+					input.work_item_id,
+					input.params ?? null,
 				),
 			),
 	);
@@ -80,7 +85,7 @@ export function registerIntakeTools(
 		"update_intake_work_item",
 		"Update an intake work item by work item ID.",
 		{
-			project_id: z.string().describe("UUID of the project"),
+			...projectIdField(ctx),
 			work_item_id: z
 				.string()
 				.describe(
@@ -90,14 +95,14 @@ export function registerIntakeTools(
 				.record(z.unknown())
 				.describe("Updated intake work item data as a dictionary"),
 		},
-		async ({ project_id, work_item_id, data }) =>
+		async (input) =>
 			toolResult(() =>
 				intake.update(
 					ctx.config,
 					ctx.workspaceSlug,
-					project_id,
-					work_item_id,
-					data,
+					requireProjectId(ctx, input),
+					input.work_item_id,
+					input.data,
 				),
 			),
 	);
@@ -106,16 +111,21 @@ export function registerIntakeTools(
 		"delete_intake_work_item",
 		"Delete an intake work item by work item ID.",
 		{
-			project_id: z.string().describe("UUID of the project"),
+			...projectIdField(ctx),
 			work_item_id: z
 				.string()
 				.describe(
 					"UUID of the work item (use the issue field from IntakeWorkItem response, not the intake work item ID)",
 				),
 		},
-		async ({ project_id, work_item_id }) =>
+		async (input) =>
 			toolResult(() =>
-				intake.delete(ctx.config, ctx.workspaceSlug, project_id, work_item_id),
+				intake.delete(
+					ctx.config,
+					ctx.workspaceSlug,
+					requireProjectId(ctx, input),
+					input.work_item_id,
+				),
 			),
 	);
 }

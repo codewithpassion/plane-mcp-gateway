@@ -73,6 +73,7 @@ function ConfigsList() {
 							<TableHead>Slug</TableHead>
 							<TableHead>Display name</TableHead>
 							<TableHead>Plane workspace</TableHead>
+							<TableHead>Project</TableHead>
 							<TableHead>MCP URL</TableHead>
 							<TableHead>API key</TableHead>
 							<TableHead className="text-right">Actions</TableHead>
@@ -82,7 +83,7 @@ function ConfigsList() {
 						{configs === null && !error && (
 							<TableRow>
 								<TableCell
-									colSpan={6}
+									colSpan={7}
 									className="text-center text-muted-foreground"
 								>
 									Loading...
@@ -92,7 +93,7 @@ function ConfigsList() {
 						{configs?.length === 0 && (
 							<TableRow>
 								<TableCell
-									colSpan={6}
+									colSpan={7}
 									className="text-center text-muted-foreground"
 								>
 									No configurations yet. Create one to get started.
@@ -113,6 +114,16 @@ function ConfigsList() {
 								<TableCell>{c.displayName}</TableCell>
 								<TableCell className="font-mono text-sm">
 									{c.planeWorkspaceSlug}
+								</TableCell>
+								<TableCell className="text-sm">
+									{c.projectId ? (
+										<span className="font-mono">
+											{c.projectName ?? c.projectId.slice(0, 8)}
+											{c.projectIdentifier ? ` (${c.projectIdentifier})` : ""}
+										</span>
+									) : (
+										<span className="text-muted-foreground">All</span>
+									)}
 								</TableCell>
 								<TableCell>
 									<McpUrlCell slug={c.slug} />

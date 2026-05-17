@@ -2,7 +2,7 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import type { PlaneAppContext } from "../client";
 import { workLogs } from "../resources/work_logs";
-import { toolResult } from "./_helpers";
+import { projectIdField, requireProjectId, toolResult } from "./_helpers";
 
 export function registerWorkLogTools(
 	server: McpServer,
@@ -12,21 +12,21 @@ export function registerWorkLogTools(
 		"list_work_logs",
 		"List work logs for a work item.",
 		{
-			project_id: z.string().describe("UUID of the project"),
+			...projectIdField(ctx),
 			work_item_id: z.string().describe("UUID of the work item"),
 			params: z
 				.record(z.unknown())
 				.optional()
 				.describe("Optional query parameters as a dictionary"),
 		},
-		async ({ project_id, work_item_id, params }) =>
+		async (input) =>
 			toolResult(() =>
 				workLogs.list(
 					ctx.config,
 					ctx.workspaceSlug,
-					project_id,
-					work_item_id,
-					params ?? null,
+					requireProjectId(ctx, input),
+					input.work_item_id,
+					input.params ?? null,
 				),
 			),
 	);
@@ -35,7 +35,7 @@ export function registerWorkLogTools(
 		"create_work_log",
 		"Create a work log for a work item.",
 		{
-			project_id: z.string().describe("UUID of the project"),
+			...projectIdField(ctx),
 			work_item_id: z.string().describe("UUID of the work item"),
 			duration: z
 				.number()
@@ -47,14 +47,14 @@ export function registerWorkLogTools(
 				.optional()
 				.describe("Description of the work performed"),
 		},
-		async ({ project_id, work_item_id, duration, description }) =>
+		async (input) =>
 			toolResult(() =>
 				workLogs.create(
 					ctx.config,
 					ctx.workspaceSlug,
-					project_id,
-					work_item_id,
-					{ duration, description },
+					requireProjectId(ctx, input),
+					input.work_item_id,
+					{ duration: input.duration, description: input.description },
 				),
 			),
 	);
@@ -63,7 +63,7 @@ export function registerWorkLogTools(
 		"update_work_log",
 		"Update a work log for a work item.",
 		{
-			project_id: z.string().describe("UUID of the project"),
+			...projectIdField(ctx),
 			work_item_id: z.string().describe("UUID of the work item"),
 			work_log_id: z.string().describe("UUID of the work log"),
 			duration: z
@@ -76,15 +76,15 @@ export function registerWorkLogTools(
 				.optional()
 				.describe("Description of the work performed"),
 		},
-		async ({ project_id, work_item_id, work_log_id, duration, description }) =>
+		async (input) =>
 			toolResult(() =>
 				workLogs.update(
 					ctx.config,
 					ctx.workspaceSlug,
-					project_id,
-					work_item_id,
-					work_log_id,
-					{ duration, description },
+					requireProjectId(ctx, input),
+					input.work_item_id,
+					input.work_log_id,
+					{ duration: input.duration, description: input.description },
 				),
 			),
 	);
@@ -93,18 +93,18 @@ export function registerWorkLogTools(
 		"delete_work_log",
 		"Delete a work log for a work item.",
 		{
-			project_id: z.string().describe("UUID of the project"),
+			...projectIdField(ctx),
 			work_item_id: z.string().describe("UUID of the work item"),
 			work_log_id: z.string().describe("UUID of the work log"),
 		},
-		async ({ project_id, work_item_id, work_log_id }) =>
+		async (input) =>
 			toolResult(() =>
 				workLogs.delete(
 					ctx.config,
 					ctx.workspaceSlug,
-					project_id,
-					work_item_id,
-					work_log_id,
+					requireProjectId(ctx, input),
+					input.work_item_id,
+					input.work_log_id,
 				),
 			),
 	);
