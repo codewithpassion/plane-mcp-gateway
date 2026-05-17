@@ -4,20 +4,18 @@
  */
 {
 	"$schema": "node_modules/wrangler/config-schema.json",
-	"name": "mcp-clerk-oauth",
-	"main": "src/index.ts",
-	"compatibility_date": "2025-03-10",
+	"name": "plane-mcp-gw",
+	"main": "src/server.ts",
+	"compatibility_date": "2026-05-01",
 	"compatibility_flags": ["nodejs_compat"],
 	/**
-	 * Note: Use secrets to store sensitive data.
-	 * https://developers.cloudflare.com/workers/configuration/secrets/
-	 *
-	 * Commands to set secrets:
-	 * npx wrangler secret put CLERK_CLIENT_ID
-	 * npx wrangler secret put CLERK_CLIENT_SECRET
-	 * npx wrangler secret put CLERK_SECRET_KEY
-	 * npx wrangler secret put CLERK_FRONTEND_API
-	 * npx wrangler secret put COOKIE_ENCRYPTION_KEY
+	 * Secrets — set with `wrangler secret put <NAME>`:
+	 *   CLERK_CLIENT_ID
+	 *   CLERK_CLIENT_SECRET
+	 *   CLERK_SECRET_KEY
+	 *   CLERK_PUBLISHABLE_KEY
+	 *   CLERK_FRONTEND_API
+	 *   COOKIE_ENCRYPTION_KEY
 	 */
 	"migrations": [
 		{
@@ -39,9 +37,6 @@
 			"id": "<Add-KV-ID>"
 		}
 	],
-	"ai": {
-		"binding": "AI"
-	},
 	"observability": {
 		"enabled": true
 	},
