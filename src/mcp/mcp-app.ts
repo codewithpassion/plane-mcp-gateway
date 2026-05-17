@@ -5,7 +5,8 @@ import {
 } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { McpAgent } from "agents/mcp";
 import { ClerkHandler } from "../clerk-handler";
-import { loadConfig } from "../plane/storage";
+import { projects as projectsResource } from "../plane/resources/projects";
+import { loadConfig, type PlaneConfigRecord } from "../plane/storage";
 import { registerPlaneTools } from "../plane/tools";
 import type { Props } from "../utils";
 
@@ -44,6 +45,13 @@ export class MyMCP extends McpAgent<Env, Record<string, never>, Props> {
 	private slug?: string;
 	private planeTools: RegisteredTool[] = [];
 	private planeCfgVersion?: string;
+	private instructionsCache?: {
+		cfgVersion: string;
+		expiresAt: number;
+		text: string;
+	};
+	private static readonly INSTRUCTIONS_TTL_MS = 5 * 60_000;
+	private static readonly INSTRUCTIONS_FAILURE_TTL_MS = 60_000;
 
 	async init() {}
 
@@ -68,8 +76,10 @@ export class MyMCP extends McpAgent<Env, Record<string, never>, Props> {
 					this.planeTools = [];
 					this.planeCfgVersion = undefined;
 				}
+				this.instructionsCache = undefined;
 				return new Response("plane config no longer exists", { status: 410 });
 			}
+			await this.ensureInstructions(cfg);
 			if (this.planeCfgVersion !== cfg.updatedAt) {
 				for (const t of this.planeTools) t.remove();
 				this.planeTools = registerPlaneToolsTracked(this.server, {
@@ -85,6 +95,81 @@ export class MyMCP extends McpAgent<Env, Record<string, never>, Props> {
 		}
 		return super.fetch(request);
 	}
+
+	private async ensureInstructions(cfg: PlaneConfigRecord): Promise<void> {
+		const now = Date.now();
+		const cached = this.instructionsCache;
+		if (
+			cached &&
+			cached.cfgVersion === cfg.updatedAt &&
+			now < cached.expiresAt
+		) {
+			return;
+		}
+
+		let text: string;
+		let ttlMs = MyMCP.INSTRUCTIONS_TTL_MS;
+
+		if (cfg.projectId) {
+			text = renderPinnedInstructions(cfg);
+		} else {
+			try {
+				const resp = await projectsResource.list(
+					{
+						baseUrl: cfg.baseUrl ?? "https://api.plane.so",
+						apiKey: cfg.apiKey,
+					},
+					cfg.planeWorkspaceSlug,
+					{ per_page: INSTRUCTIONS_PROJECT_CAP },
+				);
+				text = renderUnpinnedInstructions(cfg, resp.results ?? []);
+			} catch (err) {
+				console.warn("ensureInstructions: projects.list failed", err);
+				text = renderWorkspaceBanner(cfg);
+				ttlMs = MyMCP.INSTRUCTIONS_FAILURE_TTL_MS;
+			}
+		}
+
+		(
+			this.server.server as unknown as { _instructions?: string }
+		)._instructions = text;
+		this.instructionsCache = {
+			cfgVersion: cfg.updatedAt,
+			expiresAt: now + ttlMs,
+			text,
+		};
+	}
+}
+
+const INSTRUCTIONS_PROJECT_CAP = 50;
+
+function renderWorkspaceBanner(cfg: PlaneConfigRecord): string {
+	return `This MCP server is connected to the Plane workspace "${cfg.planeWorkspaceSlug}".`;
+}
+
+function renderPinnedInstructions(cfg: PlaneConfigRecord): string {
+	const name = cfg.projectName ?? "(unnamed)";
+	const ident = cfg.projectIdentifier ? ` (${cfg.projectIdentifier})` : "";
+	return `This MCP server is pinned to project "${name}"${ident} in Plane workspace "${cfg.planeWorkspaceSlug}". Tools that operate on a project act on this pinned project automatically — no project_id parameter is required.`;
+}
+
+function renderUnpinnedInstructions(
+	cfg: PlaneConfigRecord,
+	projects: Array<{ id?: string | null; name: string; identifier: string }>,
+): string {
+	const banner = renderWorkspaceBanner(cfg);
+	if (projects.length === 0) {
+		return `${banner}\n\nNo projects found in this workspace. Use \`create_project\` to add one.`;
+	}
+	const lines = projects
+		.filter((p) => p.id)
+		.map((p) => `- ${p.identifier} — ${p.name} — id: ${p.id}`)
+		.join("\n");
+	const capped = projects.length >= INSTRUCTIONS_PROJECT_CAP;
+	const footer = capped
+		? `\n\nThis list is capped at ${INSTRUCTIONS_PROJECT_CAP} projects. Call \`list_projects\` to page through the full set.`
+		: "\n\nIf a project you need is not listed, call `list_projects` for the full set.";
+	return `${banner}\n\nAvailable projects (use the \`id\` as the \`project_id\` parameter):\n${lines}${footer}\nWhen a tool requires \`project_id\`, pick the matching id from this list.`;
 }
 
 export const oauthProvider = new OAuthProvider({
