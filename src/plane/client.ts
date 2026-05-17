@@ -7,6 +7,11 @@ export interface PlaneConfig {
 	timeoutMs?: number;
 }
 
+export interface PlaneAppContext {
+	config: PlaneConfig;
+	workspaceSlug: string;
+}
+
 export interface PlaneRequestOptions {
 	params?: Record<string, unknown> | null;
 	body?: unknown;
@@ -47,7 +52,7 @@ function buildHeaders(config: PlaneConfig, hasBody: boolean): Headers {
 	const headers = new Headers();
 	if (hasBody) headers.set("Content-Type", "application/json");
 	headers.set("Accept", "application/json");
-	if (config.apiKey) headers.set("X-Api-Key", config.apiKey);
+	if (config.apiKey) headers.set("X-API-Key", config.apiKey);
 	if (config.accessToken)
 		headers.set("Authorization", `Bearer ${config.accessToken}`);
 	return headers;
@@ -111,12 +116,14 @@ export async function planeFetch<T = unknown>(
 		const timer = setTimeout(() => controller.abort(), timeoutMs);
 		let response: Response;
 		try {
+			console.log(`[plane] ${method} ${url}`);
 			response = await fetch(url, {
 				method,
 				headers,
 				body,
 				signal: controller.signal,
 			});
+			console.log(`[plane] ${method} ${url} -> ${response.status}`);
 		} catch (err) {
 			lastError = err;
 			clearTimeout(timer);
@@ -142,6 +149,10 @@ export async function planeFetch<T = unknown>(
 		}
 
 		const payload = await parseError(response);
+		console.log(
+			`[plane] ${method} ${url} error payload:`,
+			typeof payload === "string" ? payload.slice(0, 500) : payload,
+		);
 		throw new HttpError(response.status, response.statusText, payload);
 	}
 

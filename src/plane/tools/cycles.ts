@@ -1,6 +1,6 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
-import type { PlaneAppContext } from "../context";
+import type { PlaneAppContext } from "../client";
 import { cycles } from "../resources/cycles";
 import type { CreateCycleBody, UpdateCycleBody } from "../types/cycles";
 import { toolResult } from "./_helpers";

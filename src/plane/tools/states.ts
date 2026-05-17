@@ -1,6 +1,6 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
-import type { PlaneAppContext } from "../context";
+import type { PlaneAppContext } from "../client";
 import { states } from "../resources/states";
 import type { StateGroupEnum } from "../types/common";
 import { toolResult } from "./_helpers";

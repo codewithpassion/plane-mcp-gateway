@@ -1,5 +1,5 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import type { PlaneAppContext } from "../context";
+import type { PlaneAppContext } from "../client";
 import { registerCycleTools } from "./cycles";
 import { registerEpicTools } from "./epics";
 import { registerInitiativeTools } from "./initiatives";

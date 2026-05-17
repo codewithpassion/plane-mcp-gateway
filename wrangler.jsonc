@@ -5,16 +5,9 @@
 {
 	"$schema": "node_modules/wrangler/config-schema.json",
 	"name": "mcp-clerk-oauth",
-	"main": "src/index.ts",
-	"compatibility_date": "2025-03-10",
+	"main": "src/server.ts",
+	"compatibility_date": "2026-05-01",
 	"compatibility_flags": ["nodejs_compat"],
-	/**
-	 * Non-secret defaults. PLANE_API_KEY and PLANE_WORKSPACE_SLUG must be set
-	 * as secrets (wrangler secret put ...) or in .env for local dev.
-	 */
-	"vars": {
-		"PLANE_BASE_URL": "https://api.plane.so"
-	},
 	/**
 	 * Note: Use secrets to store sensitive data.
 	 * https://developers.cloudflare.com/workers/configuration/secrets/
@@ -25,6 +18,8 @@
 	 * npx wrangler secret put CLERK_SECRET_KEY
 	 * npx wrangler secret put CLERK_FRONTEND_API
 	 * npx wrangler secret put COOKIE_ENCRYPTION_KEY
+	 *
+	 * Per-user Plane configurations are stored in OAUTH_KV (no PLANE_* env vars).
 	 */
 	"migrations": [
 		{
@@ -54,5 +49,11 @@
 	},
 	"dev": {
 		"port": 8788
+	}, 
+	"routes": [
+		{ 
+			"custom_domain": true,
+			"pattern": "planemcpgo.rockyshoreslabs.io"
 	}
+	]
 }

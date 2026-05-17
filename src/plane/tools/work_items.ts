@@ -1,6 +1,6 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
-import type { PlaneAppContext } from "../context";
+import type { PlaneAppContext } from "../client";
 import { workItems } from "../resources/work_items";
 import type { PriorityEnum, WorkItemQueryParams } from "../types/common";
 import type {
@@ -23,25 +23,25 @@ function _buildAdvancedSearchFilters(args: {
 	created_by_ids?: string[];
 }): Record<string, unknown> | null {
 	const conditions: Record<string, unknown>[] = [];
-	if (args.assignee_ids && args.assignee_ids.length)
+	if (args.assignee_ids?.length)
 		conditions.push({ assignee_id__in: args.assignee_ids });
-	if (args.state_ids && args.state_ids.length)
+	if (args.state_ids?.length)
 		conditions.push({ state_id__in: args.state_ids });
-	if (args.state_groups && args.state_groups.length)
+	if (args.state_groups?.length)
 		conditions.push({ state_group__in: args.state_groups });
-	if (args.priorities && args.priorities.length)
+	if (args.priorities?.length)
 		conditions.push({ priority__in: args.priorities });
-	if (args.label_ids && args.label_ids.length)
+	if (args.label_ids?.length)
 		conditions.push({ label_id__in: args.label_ids });
-	if (args.type_ids && args.type_ids.length)
+	if (args.type_ids?.length)
 		conditions.push({ type_id__in: args.type_ids });
-	if (args.cycle_ids && args.cycle_ids.length)
+	if (args.cycle_ids?.length)
 		conditions.push({ cycle_id__in: args.cycle_ids });
-	if (args.module_ids && args.module_ids.length)
+	if (args.module_ids?.length)
 		conditions.push({ module_id__in: args.module_ids });
 	if (args.is_archived !== undefined && args.is_archived !== null)
 		conditions.push({ is_archived: args.is_archived });
-	if (args.created_by_ids && args.created_by_ids.length)
+	if (args.created_by_ids?.length)
 		conditions.push({ created_by_id__in: args.created_by_ids });
 	if (conditions.length === 0) return null;
 	if (conditions.length === 1) return conditions[0];

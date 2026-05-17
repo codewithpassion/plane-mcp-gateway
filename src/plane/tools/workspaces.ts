@@ -1,6 +1,6 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
-import type { PlaneAppContext } from "../context";
+import type { PlaneAppContext } from "../client";
 import { workspaces } from "../resources/workspaces";
 import type { WorkspaceFeature } from "../types/workspaces";
 import { toolResult } from "./_helpers";

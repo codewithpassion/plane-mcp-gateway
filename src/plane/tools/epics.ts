@@ -1,7 +1,6 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
-import type { PlaneConfig } from "../client";
-import type { PlaneAppContext } from "../context";
+import type { PlaneAppContext, PlaneConfig } from "../client";
 import { epics } from "../resources/epics";
 import { workItemTypes } from "../resources/work_item_types";
 import type { PriorityEnum } from "../types/common";

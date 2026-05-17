@@ -1,6 +1,6 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
-import type { PlaneAppContext } from "../context";
+import type { PlaneAppContext } from "../client";
 import { workItemProperties } from "../resources/work_item_properties";
 import type { PropertyTypeEnum, RelationTypeEnum } from "../types/common";
 import type {

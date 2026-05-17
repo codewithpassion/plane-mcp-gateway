@@ -888,8 +888,10 @@ async function verifySignature(
 	const key = await importKey(secret);
 	const enc = new TextEncoder();
 	try {
+		const matched = signatureHex.match(/.{1,2}/g);
+		if (!matched) return false;
 		const signatureBytes = new Uint8Array(
-			signatureHex.match(/.{1,2}/g)?.map((byte) => Number.parseInt(byte, 16)),
+			matched.map((byte) => Number.parseInt(byte, 16)),
 		);
 		return await crypto.subtle.verify(
 			"HMAC",

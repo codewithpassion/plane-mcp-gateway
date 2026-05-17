@@ -3,7 +3,7 @@
 // Runtime types generated with workerd@1.20251011.0 2025-03-10 nodejs_compat
 declare namespace Cloudflare {
 	interface GlobalProps {
-		mainModule: typeof import("./src/index");
+		mainModule: typeof import("./src/server");
 		durableNamespaces: "MyMCP";
 	}
 	interface Env {
@@ -15,7 +15,7 @@ declare namespace Cloudflare {
 		CLERK_FRONTEND_API: string;
 		CLERK_CLIENT_ID: string;
 		CLERK_CLIENT_SECRET: string;
-		MCP_OBJECT: DurableObjectNamespace<import("./src/index").MyMCP>;
+		MCP_OBJECT: DurableObjectNamespace<import("./src/server").MyMCP>;
 		AI: Ai;
 	}
 }
