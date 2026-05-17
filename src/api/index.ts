@@ -145,7 +145,7 @@ apiApp.post("/configs/:slug/test", async (c) => {
 				? `${err.status} ${err.message} on ${baseUrl}/api/v1${path}/ — ${
 						typeof err.payload === "string"
 							? err.payload.slice(0, 200)
-							: JSON.stringify(err.payload)?.slice(0, 200) ?? ""
+							: (JSON.stringify(err.payload)?.slice(0, 200) ?? "")
 					}`
 				: err instanceof Error
 					? err.message

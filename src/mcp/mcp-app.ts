@@ -99,7 +99,11 @@ export class MyMCP extends McpAgent<Env, Record<string, never>, Props> {
 			return new Response("session/slug mismatch", { status: 400 });
 		}
 		if (this.slug && !this.planeRegistered) {
-			const cfg = await loadConfig(this.env, this.props?.userId ?? "", this.slug);
+			const cfg = await loadConfig(
+				this.env,
+				this.props?.userId ?? "",
+				this.slug,
+			);
 			if (!cfg) return new Response("unknown plane config", { status: 404 });
 			registerPlaneTools(this.server, {
 				config: {

@@ -25,18 +25,14 @@ function _buildAdvancedSearchFilters(args: {
 	const conditions: Record<string, unknown>[] = [];
 	if (args.assignee_ids?.length)
 		conditions.push({ assignee_id__in: args.assignee_ids });
-	if (args.state_ids?.length)
-		conditions.push({ state_id__in: args.state_ids });
+	if (args.state_ids?.length) conditions.push({ state_id__in: args.state_ids });
 	if (args.state_groups?.length)
 		conditions.push({ state_group__in: args.state_groups });
 	if (args.priorities?.length)
 		conditions.push({ priority__in: args.priorities });
-	if (args.label_ids?.length)
-		conditions.push({ label_id__in: args.label_ids });
-	if (args.type_ids?.length)
-		conditions.push({ type_id__in: args.type_ids });
-	if (args.cycle_ids?.length)
-		conditions.push({ cycle_id__in: args.cycle_ids });
+	if (args.label_ids?.length) conditions.push({ label_id__in: args.label_ids });
+	if (args.type_ids?.length) conditions.push({ type_id__in: args.type_ids });
+	if (args.cycle_ids?.length) conditions.push({ cycle_id__in: args.cycle_ids });
 	if (args.module_ids?.length)
 		conditions.push({ module_id__in: args.module_ids });
 	if (args.is_archived !== undefined && args.is_archived !== null)
