@@ -9,6 +9,13 @@
 	"compatibility_date": "2025-03-10",
 	"compatibility_flags": ["nodejs_compat"],
 	/**
+	 * Non-secret defaults. PLANE_API_KEY and PLANE_WORKSPACE_SLUG must be set
+	 * as secrets (wrangler secret put ...) or in .env for local dev.
+	 */
+	"vars": {
+		"PLANE_BASE_URL": "https://api.plane.so"
+	},
+	/**
 	 * Note: Use secrets to store sensitive data.
 	 * https://developers.cloudflare.com/workers/configuration/secrets/
 	 *
