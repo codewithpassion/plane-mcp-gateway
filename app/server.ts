@@ -1,7 +1,8 @@
 import OAuthProvider from "@cloudflare/workers-oauth-provider";
-import { apiApp } from "./api";
-import { ClerkHandler } from "./clerk-handler";
-import { MyMCP } from "./mcp/mcp-app";
+import handler from "@tanstack/react-start/server-entry";
+import { apiApp } from "../src/api";
+import { ClerkHandler } from "../src/clerk-handler";
+import { MyMCP } from "../src/mcp/mcp-app";
 
 const oauthProvider = new OAuthProvider({
 	apiHandlers: {
@@ -34,10 +35,6 @@ function rewriteSlugRequest(request: Request): Request | null {
 	});
 }
 
-/**
- * Fix OAuth metadata URLs (HTTPS rewrite) and enrich 401s with
- * resource_metadata WWW-Authenticate per RFC 9728.
- */
 async function wrapOAuthResponse(
 	request: Request,
 	env: Env,
@@ -120,7 +117,7 @@ export default {
 		}
 
 		if (url.pathname.startsWith("/api/")) {
-			const subPath = url.pathname.slice(4); // strip "/api"
+			const subPath = url.pathname.slice(4);
 			const subUrl = new URL(subPath || "/", url.origin);
 			subUrl.search = url.search;
 			const subReq = new Request(subUrl.toString(), {
@@ -133,32 +130,7 @@ export default {
 			return apiApp.fetch(subReq, env, ctx);
 		}
 
-		// UI handler — TanStack Start server entry (scaffolded under app/).
-		// Dynamic specifier so the worker still type-checks when the UI module
-		// hasn't been generated yet.
-		try {
-			const uiSpecifier: string = "../app/server-entry";
-			const mod = (await import(/* @vite-ignore */ uiSpecifier)) as {
-				default: ExportedHandler<Env>;
-			};
-			return (
-				(await mod.default.fetch?.(
-					request as unknown as Parameters<
-						NonNullable<ExportedHandler<Env>["fetch"]>
-					>[0],
-					env,
-					ctx,
-				)) ?? new Response("UI not available", { status: 503 })
-			);
-		} catch {
-			return new Response(
-				`<!doctype html><meta charset=utf-8><title>plane-mcp-gw</title>` +
-					`<body style="font-family:system-ui;padding:2rem">` +
-					`<h1>plane-mcp-gw</h1>` +
-					`<p>UI not built yet. POST /api/configs to manage configurations, ` +
-					`then connect MCP clients to <code>/mcp/&lt;slug&gt;</code>.</p>`,
-				{ headers: { "content-type": "text/html; charset=utf-8" } },
-			);
-		}
+		// Everything else → TanStack Start UI (SSR + assets).
+		return handler.fetch(request);
 	},
 } satisfies ExportedHandler<Env>;
