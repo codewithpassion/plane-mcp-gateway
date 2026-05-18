@@ -6,6 +6,7 @@
 	"scripts": {
 		"deploy": "vite build && wrangler deploy",
 		"dev": "vite dev",
+		"tunnel": "cloudflared tunnel --config /dev/null --url http://localhost:8788",
 		"start": "vite dev",
 		"build": "vite build",
 		"preview": "vite preview",

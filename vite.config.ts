@@ -13,6 +13,8 @@ export default defineConfig({
 	server: {
 		port: 8788,
 		strictPort: true,
+		// Accept tunnels (cloudflared, ngrok) and any host in dev.
+		allowedHosts: true,
 	},
 	resolve: {
 		alias: {
