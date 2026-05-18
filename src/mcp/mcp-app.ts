@@ -117,6 +117,14 @@ export class MyMCP extends McpAgent<Env, MCPState, Props> {
 	}
 
 	async fetch(request: Request): Promise<Response> {
+		const url = new URL(request.url);
+
+		// Partyserver/agents framework internal paths must reach super.fetch
+		// untouched so the DO can be named and props can propagate.
+		if (url.pathname.startsWith("/cdn-cgi/")) {
+			return super.fetch(request);
+		}
+
 		const slug = request.headers.get(SLUG_HEADER) ?? undefined;
 		if (!slug)
 			return new Response("Missing Plane config slug", { status: 400 });

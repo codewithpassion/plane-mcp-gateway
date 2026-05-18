@@ -200,13 +200,22 @@ function EditConfig() {
 							</Button>
 							{projects && (
 								<select
-									className="flex h-9 rounded-md border border-[var(--color-input)] bg-transparent px-3 py-1 text-sm shadow-sm outline-none focus-visible:ring-1 focus-visible:ring-[var(--color-ring)]"
+									className="flex h-9 rounded-md border border-[var(--color-input)] bg-[var(--color-background)] text-[var(--color-foreground)] px-3 py-1 text-sm shadow-sm outline-none focus-visible:ring-1 focus-visible:ring-[var(--color-ring)]"
 									value={values.projectId ?? ""}
 									onChange={(e) => update("projectId", e.target.value)}
 								>
-									<option value="">All projects (no pin)</option>
+									<option
+										value=""
+										className="bg-[var(--color-background)] text-[var(--color-foreground)]"
+									>
+										All projects (no pin)
+									</option>
 									{projects.map((p) => (
-										<option key={p.id} value={p.id}>
+										<option
+											key={p.id}
+											value={p.id}
+											className="bg-[var(--color-background)] text-[var(--color-foreground)]"
+										>
 											{p.identifier} — {p.name}
 										</option>
 									))}
