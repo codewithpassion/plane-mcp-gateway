@@ -45,7 +45,7 @@ Top-level dispatch in `src/server.ts`:
 | `/api/...` | Hono app (`src/api/index.ts`), Clerk session auth |
 | anything else | TanStack Start (UI) |
 
-On each MCP request the Durable Object reloads the config from KV, compares `updatedAt` to the last-registered version, and tears down / re-registers Plane tools if it has changed. The MCP SDK emits `notifications/tools/list_changed` automatically. KV is eventually consistent across colos, so changes typically propagate within seconds (up to ~60 s worst case).
+On each MCP request the Durable Object reloads the config from 2, compares `updatedAt` to the last-registered version, and tears down / re-registers Plane tools if it has changed. The MCP SDK emits `notifications/tools/list_changed` automatically. KV is eventually consistent across colos, so changes typically propagate within seconds (up to ~60 s worst case).
 
 ## Getting started
 
